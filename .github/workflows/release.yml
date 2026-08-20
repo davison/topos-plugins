@@ -1,0 +1,79 @@
+# Publishes a tagged GitHub Release carrying this repository's demo plugin
+# binary and its ed25519-signed release manifest — the standing proof
+# (TRUST-02) that a real topos-plugins release, signed by this repository's
+# own tag-triggered workflow, verifies as first-party trusted in the topos
+# kernel with no link-time build-manifest entry.
+#
+# Triggered by pushing a tag matching v*.*.*.
+#
+# The signing step invokes the topos kernel repository's own
+# cmd/topos-provenance CLI at a PINNED commit — never a floating ref — so
+# this repository's release pipeline can never silently pick up a changed
+# manifest format or signing scheme. The signing key is referenced exactly
+# twice below (the env: key and its secrets. value), passed only through
+# the environment, and never appears in argv or in any echoed/debug
+# output — no shell trace flag is enabled anywhere in this job.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: demo/go.mod
+          cache: true
+
+      - name: Build the demo plugin binary
+        run: |
+          mkdir -p bin
+          cd demo && go build -o ../bin/topos-plugin-demo .
+
+      # The signing key is referenced exactly twice in this step: once as
+      # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
+      # secrets. value. It is never passed as a --flag (where it would
+      # appear in a process listing) and never echoed. This step invokes
+      # topos's own cmd/topos-provenance at a PINNED commit — see the
+      # comment above the ref below — never @latest.
+      - name: Sign the release manifest
+        env:
+          TOPOS_PROVENANCE_SIGNING_KEY: ${{ secrets.TOPOS_PROVENANCE_SIGNING_KEY }}
+        run: |
+          # Pinned to the exact topos kernel commit that introduced
+          # cmd/topos-provenance (16-01-PLAN.md). This repository's own
+          # signing pipeline is proven here, in this repository, before
+          # any topos kernel release tag exists that carries this CLI —
+          # once topos next cuts a tagged release including it, this pin
+          # should move to that tag (see 16-04-TRUST02-PROOF.md).
+          go run github.com/davison/topos/cmd/topos-provenance@e0290110026c5717d8fadebcb15f681314b9f2c1 \
+            sign \
+            --key-id topos-plugins-2026a \
+            --repo davison/topos-plugins \
+            --tag "$GITHUB_REF_NAME" \
+            --version "$GITHUB_REF_NAME" \
+            --contract topos.v1 \
+            --out-dir bin \
+            bin/topos-plugin-demo
+
+      - name: Hash and publish release assets
+        run: |
+          (cd bin && sha256sum topos-plugin-demo topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
+          gh release create "$GITHUB_REF_NAME" \
+            bin/topos-plugin-demo \
+            bin/topos-plugins-*.provenance.json \
+            bin/topos-plugins-*.provenance.sig \
+            bin/checksums.txt \
+            --title "$GITHUB_REF_NAME" \
+            --notes "topos-plugins seed release — see README.md. Signed by this repository's own tag-triggered workflow." \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
