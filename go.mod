@@ -1,4 +1,4 @@
-module github.com/davison/topos-plugins/demo
+module github.com/davison/topos-plugins
 
 go 1.25.0
 

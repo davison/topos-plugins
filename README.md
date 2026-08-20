@@ -3,7 +3,7 @@
 This repository is the seed of what Phase 17 of
 [`topos`](https://github.com/davison/topos) fills with its real out-of-repo
 source plugins. Today it holds exactly one thing: a trivial, real plugin
-(`demo/`) and a tag-triggered release workflow that signs its published
+(`cmd/topos-plugin-demo/`) and a tag-triggered release workflow that signs its published
 binary with this repository's own ed25519 key. Nothing here is
 operator-facing yet — this repository exists to prove the signing pipeline
 that the real plugin split will build on top of, in its final home.
@@ -27,7 +27,7 @@ see that repository's D-03).
 
 ## What the release workflow guarantees
 
-Pushing a tag matching `v*.*.*` builds `demo/`'s plugin binary
+Pushing a tag matching `v*.*.*` builds `cmd/topos-plugin-demo/`'s plugin binary
 (`topos-plugin-demo`), signs a release manifest naming its SHA-256 with
 this repository's private key (never printed, never logged — passed to the
 signing step only through the environment), and publishes a GitHub Release
@@ -45,12 +45,12 @@ format or the signature scheme.
 ## Building locally
 
 ```
-cd demo && go build -o topos-plugin-demo .
+go build ./...
 ```
 
 ## What this repository is not
 
 It is not yet a real plugin catalog. Phase 17 of `topos` fills this
-repository with real, out-of-repo source plugins; until then, `demo/` is
-here only to give the release pipeline something genuine to build and
-sign.
+repository with real, out-of-repo source plugins; until then,
+`cmd/topos-plugin-demo/` is here only to give the release pipeline
+something genuine to build and sign.

@@ -30,13 +30,13 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: demo/go.mod
+          go-version-file: go.mod
           cache: true
 
       - name: Build the demo plugin binary
         run: |
           mkdir -p bin
-          cd demo && go build -o ../bin/topos-plugin-demo .
+          go build -o bin/topos-plugin-demo ./cmd/topos-plugin-demo
 
       # The signing key is referenced exactly twice in this step: once as
       # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
