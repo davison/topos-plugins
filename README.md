@@ -128,10 +128,15 @@ Each binary the release publishes is replaced — copies are staged
 inside the directory first and then renamed into place in one pass,
 so a running kernel and its plugin processes are never truncated
 mid-execution — and then a binary an older release placed that the new
-one no longer publishes is **retired** (removed), and the older
-release's manifest pair goes with it, so `$PREFIX/lib/topos/plugins`
-holds exactly the selected release's fleet and evidence, never a
-retired plugin kept trusted by a stale manifest. The installer names
+one no longer publishes is **retired** (removed) — after its evidence
+is authenticated: a candidate is deleted only when the verifier
+confirms a validly-signed older manifest of this repository vouches
+for the exact bytes on disk. A same-name file whose bytes differ (a
+replacement you made), or one whose valid evidence is another
+publisher's, is left in place and reported — never ours to remove.
+The older release's manifest pair goes in either case, so
+`$PREFIX/lib/topos/plugins` holds exactly the selected release's fleet
+and evidence, never a retired plugin kept trusted by a stale manifest. The installer names
 every file it wrote, retired or removed. Restart the kernel to pick up
 the new fleet.
 
@@ -149,9 +154,10 @@ tag.
   writability probe may have created the empty plugins directory).
 - **During the copy pass** — a full disk, say — the staged copies are
   removed and the directory is left as it was.
-- **During the rename pass** — only a signal can interrupt it: each
-  destination is then wholly old or wholly new bytes, never torn.
-  Re-run the same version to finish.
+- **During the rename pass** — however it fails or is interrupted (an
+  I/O error, a permissions race, a signal): each destination is wholly
+  old or wholly new bytes, never torn. Re-run the same version to
+  finish.
 - **Between placement and convergence** — the new fleet is in place;
   re-running the same version performs the retirement.
 
@@ -200,7 +206,10 @@ signed with a throwaway key — the demo plugin as the binary, the
 verifier built at the pinned kernel revision and relinked to accept
 that key — installed through `install.sh`'s file:// test seam. It pins
 the happy path, the in-place update (including retiring a plugin the
-newer release no longer publishes), a corrupted asset, a binary
+newer release no longer publishes — and NOT retiring a same-name
+foreign replacement or a binary named only by forged evidence), a
+corrupted asset, an injected placement-copy failure (destinations
+preserved, every staged copy removed), a binary
 tampered after signing with `checksums.txt` regenerated to match, an
 unsigned release, no resolvable verifier, the installed-verifier
 preference, a traversal-shaped `checksums.txt`, a destination that is not a
