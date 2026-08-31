@@ -26,7 +26,7 @@ handoff = false
 ```
 
 `path` is the folder this instance reads from. A leading `~` is expanded
-by the plugin itself, not the kernel (`kernel/config`'s `Path` field is
+by the plugin itself, not the kernel (the kernel's [`config.Source.Path`](https://github.com/davison/topos/blob/main/kernel/config/types.go) field is
 stored unexpanded, the same convention `plugins/signal` and
 `plugins/whatsapp` already use).
 
