@@ -35,7 +35,8 @@ bin/topos-plugin-whatsapp -link -path ~/.local/share/topos/whatsapp
 ```
 
 Scan the rendered QR code with your phone, then restart the kernel (or
-`make dev`); the linked session survives restarts with no second scan.
+the kernel checkout's `make dev` loop); the linked session survives
+restarts with no second scan.
 The fully-commented reference block is reproduced below, under "Configuration reference".
 
 ## Gotchas
@@ -91,7 +92,8 @@ display_name = "WhatsApp"
 # flag (never through the running kernel):
 #   bin/topos-plugin-whatsapp -link -path ~/.local/share/topos/whatsapp
 # and scan the rendered ASCII QR code with your phone. Re-run the kernel
-# (or `make dev`) after linking succeeds; the linked session survives a
+# (or the kernel checkout's `make dev` loop) after linking succeeds; the
+# linked session survives a
 # kernel restart with no second QR scan.
 # Validation: kernel/config.Validate accepts a source declaring only
 # path, in place of base_url+token — identical to [sources.signal].

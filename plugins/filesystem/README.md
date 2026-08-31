@@ -127,7 +127,7 @@ above — **never as glob patterns** — deliberately different from the
 which ARE doublestar patterns. A value of a bare asterisk (`*`), or a
 doubled asterisk (`**`), is therefore treated as a literal folder name,
 matches no label, and yields an empty stream for that source while
-`Health` and the sync both stay green. See `docs/plugin-contract.md`'s
+`Health` and the sync both stay green. See the kernel's [`docs/plugin-contract.md`](https://github.com/davison/topos/blob/main/docs/plugin-contract.md)'s
 own match rule (rule 2, "Match exact and case-insensitive, never
 substring or prefix", D-04) — this exact-match discipline is a
 cross-plugin invariant, not something specific to this plugin.
@@ -235,8 +235,8 @@ display_name = "Household Docs"
 
 # path: the local (or network-mounted) folder this instance reads
 # documents from. A leading "~" is expanded by the plugin subprocess
-# itself, not the kernel — identical convention to [sources.signal]'s
-# path, above.
+# itself, not the kernel — the same convention every store-reading
+# plugin in this repository uses (signal, whatsapp).
 #
 # This source needs NO base_url, NO token, and NO environment variable at
 # all — a filesystem source's only "connection detail" is the path
@@ -266,8 +266,8 @@ recursive = false
 # for the worked example and the full precedence rule.
 
 # [sources.filesystem.extras] — OPTIONAL glob-based scope overrides this
-# plugin's own Describe RPC declares (see [sources.paperless.extras],
-# above, for the general extras mechanism). Both keys are a single
+# plugin's own Describe RPC declares (the general extras mechanism is
+# the kernel's docs/plugin-contract.md, "Configuration": https://github.com/davison/topos/blob/main/docs/plugin-contract.md). Both keys are a single
 # comma-separated string of doublestar glob patterns (arbitrary-depth
 # "**" supported). exclude_glob always wins over include_glob; a declared
 # include_glob REPLACES the default document-extension allowlist for this

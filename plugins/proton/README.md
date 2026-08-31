@@ -75,8 +75,7 @@ display_name = "Proton Mail"
 # reports as this account's IMAP connection security. ${PROTON_BRIDGE_ADDR}
 # is the LAN address:port of the socat/stunnel forwarder set up on the
 # home server running Bridge (Bridge itself only ever binds
-# 127.0.0.1 — see 03-RESEARCH.md Pitfall 2 — so this forwarder step is
-# not optional).
+# 127.0.0.1, so this forwarder step is not optional).
 # Validation: must be non-empty after expansion, and the scheme must be
 # exactly "imap" or "imaps"; anything else fails plugin startup, naming
 # the invalid scheme.
@@ -172,6 +171,7 @@ handoff = false
 # Grants are per instance, never per plugin kind: granting home-email
 # read access above never admits work-email's items through /agent/v1,
 # even though both instances share one source_type ("proton") and one
-# plugin binary. See "[webspaces.<name>]", below, for how each instance
-# gets its own independent match configuration too.
+# plugin binary. The kernel's config.example.toml's "[webspaces.<name>]"
+# section shows how each instance gets its own independent match
+# configuration too.
 ```
