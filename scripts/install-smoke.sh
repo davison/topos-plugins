@@ -106,16 +106,23 @@ if cmp -s "$WORK/fixture-a/topos-plugin-smoke" "$WORK/fixture-b/topos-plugin-smo
   fail "the two fixture builds are byte-identical — the update case needs different bytes"
 fi
 
-# build_release <release-root> <tag> <binary> [ship_verifier=1] [sign=1]
-# Assembles download/<tag>/ under <release-root>: the binary as
-# topos-plugin-smoke, its signed manifest pair (when sign=1), the
-# relinked verifier as topos-provenance (when ship_verifier=1), and a
-# checksums.txt over every asset present.
+# build_release <release-root> <tag> <ship_verifier> <sign> <src>:<name>...
+# Assembles download/<tag>/ under <release-root>: each <src> binary
+# under its <name>, one signed manifest pair over all of them (when
+# sign=1), the relinked verifier as topos-provenance (when
+# ship_verifier=1), and a checksums.txt over every asset present.
 build_release() {
-  local root="$1" tag="$2" bin="$3" ship_verifier="${4:-1}" sign="${5:-1}"
+  local root="$1" tag="$2" ship_verifier="$3" sign="$4"
+  shift 4
   local dir="$root/download/$tag"
   mkdir -p "$dir"
-  cp "$bin" "$dir/topos-plugin-smoke"
+  local names=()
+  local pair src name
+  for pair in "$@"; do
+    src="${pair%%:*}"; name="${pair##*:}"
+    cp "$src" "$dir/$name"
+    names+=("$dir/$name")
+  done
   if [ "$sign" = 1 ]; then
     "$VERIFIER" sign \
       --key-id install-smoke \
@@ -124,7 +131,7 @@ build_release() {
       --version "${tag#v}" \
       --key-file "$WORK/keys/install-smoke.key" \
       --out-dir "$dir" \
-      "$dir/topos-plugin-smoke" >/dev/null \
+      "${names[@]}" >/dev/null \
       || fail "sign fixture release $tag"
   fi
   if [ "$ship_verifier" = 1 ]; then
@@ -174,8 +181,8 @@ MANIFEST_A="topos-plugins-$TAG_A.provenance.json"
 MANIFEST_B="topos-plugins-$TAG_B.provenance.json"
 
 echo "==> building fixture releases $TAG_A and $TAG_B"
-build_release "$WORK/release" "$TAG_A" "$WORK/fixture-a/topos-plugin-smoke"
-build_release "$WORK/release" "$TAG_B" "$WORK/fixture-b/topos-plugin-smoke"
+build_release "$WORK/release" "$TAG_A" 1 1 "$WORK/fixture-a/topos-plugin-smoke:topos-plugin-smoke"
+build_release "$WORK/release" "$TAG_B" 1 1 "$WORK/fixture-b/topos-plugin-smoke:topos-plugin-smoke"
 
 # ---------------------------------------------------------------------
 # Case: happy path — the shipped verifier is the only one resolvable,
@@ -210,24 +217,80 @@ echo "==> Case PASS: install from fixture release"
 
 # ---------------------------------------------------------------------
 # Case: update — a newer tag into the same prefix replaces the binary,
-# leaves the older manifest pair beside the newer one, says so, and the
-# directory still verifies (the kernel's any-match scan, D-08).
+# retires nothing (the binary set is unchanged), REMOVES the older
+# release's manifest pair, says so, and the directory verifies against
+# exactly the newer manifest — convergence, not coexistence (PR #9
+# review finding 1).
 # ---------------------------------------------------------------------
 echo "==> Case: update to a newer release in place"
 run_install "$PREFIX_DIR" "file://$WORK/release" "$TAG_B"
 [ "$INSTALL_RC" -eq 0 ] || fail "update failed (rc=$INSTALL_RC)
 $INSTALL_OUT"
 cmp -s "$PLUGINS/topos-plugin-smoke" "$WORK/fixture-b/topos-plugin-smoke" || fail "update did not replace the binary with the newer release's bytes"
-for f in "$MANIFEST_A" "${MANIFEST_A%.json}.sig" "$MANIFEST_B" "${MANIFEST_B%.json}.sig"; do
+for f in "$MANIFEST_B" "${MANIFEST_B%.json}.sig"; do
   [ -f "$PLUGINS/$f" ] || fail "after update, expected $f in $PLUGINS"
 done
-printf '%s' "$INSTALL_OUT" | grep -q "1 older release manifest(s) remain beside $MANIFEST_B" || fail "update did not report the older manifest left beside the new one
+for f in "$MANIFEST_A" "${MANIFEST_A%.json}.sig"; do
+  [ ! -e "$PLUGINS/$f" ] || fail "after update, the older $f was left in $PLUGINS — updates must converge on the selected release"
+done
+printf '%s' "$INSTALL_OUT" | grep -q "removed older release manifest $MANIFEST_A" || fail "update did not report removing the older manifest
 $INSTALL_OUT"
 "$VERIFIER" verify --dir "$PLUGINS" >"$WORK/verify-b.out" 2>&1 || fail "updated directory does not verify:
 $(cat "$WORK/verify-b.out")"
 grep -q "topos-plugin-smoke: OK ($MANIFEST_B)" "$WORK/verify-b.out" || fail "after update, verify did not name $MANIFEST_B:
 $(cat "$WORK/verify-b.out")"
 echo "==> Case PASS: update to a newer release in place"
+
+# ---------------------------------------------------------------------
+# Case: update retires a plugin the newer release no longer publishes —
+# v0.2.0's demo scenario (PR #9 review finding 1). Release A ships two
+# binaries, release B ships one: after the update the retired binary is
+# gone, the old manifest that vouched for it is gone, and the directory
+# verifies against exactly release B.
+# ---------------------------------------------------------------------
+echo "==> Case: update retires a plugin the newer release drops"
+build_release "$WORK/release-retire" "$TAG_A" 1 1 \
+  "$WORK/fixture-a/topos-plugin-smoke:topos-plugin-smoke" \
+  "$WORK/fixture-a/topos-plugin-smoke:topos-plugin-smokedemo"
+build_release "$WORK/release-retire" "$TAG_B" 1 1 \
+  "$WORK/fixture-b/topos-plugin-smoke:topos-plugin-smoke"
+RETIRE_PREFIX="$WORK/prefix-retire"
+RETIRE_PLUGINS="$RETIRE_PREFIX/lib/topos/plugins"
+run_install "$RETIRE_PREFIX" "file://$WORK/release-retire" "$TAG_A"
+[ "$INSTALL_RC" -eq 0 ] || fail "retire case: install of $TAG_A failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+[ -f "$RETIRE_PLUGINS/topos-plugin-smokedemo" ] || fail "retire case: $TAG_A did not place topos-plugin-smokedemo"
+run_install "$RETIRE_PREFIX" "file://$WORK/release-retire" "$TAG_B"
+[ "$INSTALL_RC" -eq 0 ] || fail "retire case: update to $TAG_B failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+[ ! -e "$RETIRE_PLUGINS/topos-plugin-smokedemo" ] || fail "retire case: topos-plugin-smokedemo survived an update to a release that does not publish it"
+[ -f "$RETIRE_PLUGINS/topos-plugin-smoke" ] || fail "retire case: the still-published binary went missing"
+printf '%s' "$INSTALL_OUT" | grep -q "retired $RETIRE_PLUGINS/topos-plugin-smokedemo" || fail "retire case: the retirement was not reported by name
+$INSTALL_OUT"
+[ ! -e "$RETIRE_PLUGINS/$MANIFEST_A" ] || fail "retire case: the older manifest survived the update"
+"$VERIFIER" verify --dir "$RETIRE_PLUGINS" >"$WORK/verify-retire.out" 2>&1 || fail "retire case: updated directory does not verify:
+$(cat "$WORK/verify-retire.out")"
+echo "==> Case PASS: update retires a plugin the newer release drops"
+
+# ---------------------------------------------------------------------
+# Case: a destination that is not a regular file — the placement
+# pre-check refuses BEFORE any copy is staged (a rename cannot replace
+# a directory, and finding that out mid-pass would leave a partial
+# fleet); nothing is placed, no temporary file is left.
+# ---------------------------------------------------------------------
+echo "==> Case: destination is not a regular file"
+DESTDIR_PREFIX="$WORK/prefix-destdir"
+DESTDIR_PLUGINS="$DESTDIR_PREFIX/lib/topos/plugins"
+mkdir -p "$DESTDIR_PLUGINS/topos-plugin-smoke"
+run_install "$DESTDIR_PREFIX" "file://$WORK/release" "$TAG_A"
+[ "$INSTALL_RC" -ne 0 ] || fail "dest-not-file: install exited 0, expected a refusal"
+printf '%s' "$INSTALL_OUT" | grep -q "topos-plugin-smoke exists and is not a regular file" || fail "dest-not-file: refusal did not name the destination
+$INSTALL_OUT"
+[ -d "$DESTDIR_PLUGINS/topos-plugin-smoke" ] || fail "dest-not-file: the pre-existing directory was touched"
+LEFT="$(ls -A "$DESTDIR_PLUGINS" | grep -v '^topos-plugin-smoke$' || true)"
+[ -z "$LEFT" ] || fail "dest-not-file: a refused install left files behind:
+$LEFT"
+echo "==> Case PASS: destination is not a regular file"
 
 # ---------------------------------------------------------------------
 # Case: corrupted asset — a byte appended after checksums.txt was
@@ -274,7 +337,7 @@ echo "==> Case PASS: tampered after signing"
 # Refused before any binary is fetched, by name.
 # ---------------------------------------------------------------------
 echo "==> Case: release without a provenance manifest is refused"
-build_release "$WORK/release-unsigned" "$TAG_A" "$WORK/fixture-a/topos-plugin-smoke" 1 0
+build_release "$WORK/release-unsigned" "$TAG_A" 1 0 "$WORK/fixture-a/topos-plugin-smoke:topos-plugin-smoke"
 run_install "$WORK/prefix-unsigned" "file://$WORK/release-unsigned" "$TAG_A"
 [ "$INSTALL_RC" -ne 0 ] || fail "unsigned: install exited 0, expected a refusal"
 printf '%s' "$INSTALL_OUT" | grep -q "exactly one signed provenance manifest pair" || fail "unsigned: refusal did not name the missing manifest pair
@@ -288,7 +351,7 @@ echo "==> Case PASS: release without a provenance manifest is refused"
 # abort naming the three places checked; nothing placed.
 # ---------------------------------------------------------------------
 echo "==> Case: no verifier resolvable"
-build_release "$WORK/release-noverifier" "$TAG_A" "$WORK/fixture-a/topos-plugin-smoke" 0 1
+build_release "$WORK/release-noverifier" "$TAG_A" 0 1 "$WORK/fixture-a/topos-plugin-smoke:topos-plugin-smoke"
 run_install "$WORK/prefix-noverifier" "file://$WORK/release-noverifier" "$TAG_A"
 [ "$INSTALL_RC" -ne 0 ] || fail "no verifier: install exited 0, expected a refusal"
 printf '%s' "$INSTALL_OUT" | grep -q "no topos-provenance verifier could be resolved" || fail "no verifier: refusal did not say so
@@ -381,9 +444,9 @@ cmp -s "$WORK/idem-1" "$WORK/idem-2" || fail "idempotent re-run: the second inst
 echo "==> Case PASS: idempotent re-run"
 
 # ---------------------------------------------------------------------
-# Case: uninstall — after two releases were installed in place, with a
-# seeded kernel at $PREFIX/bin/topos and a foreign file in the plugins
-# directory: every binary and every manifest pair goes, the kernel and
+# Case: uninstall — after the update converged the prefix on release B,
+# with a seeded kernel at $PREFIX/bin/topos and a foreign file in the
+# plugins directory: the binary and the manifest pair go, the kernel and
 # the foreign file stay byte-identical, the directory survives and is
 # reported as not empty; once the foreign file is gone, a second run
 # removes the empty directories; a third is a clean no-op.
@@ -396,14 +459,14 @@ KERNEL_DIGEST="$(sha256sum "$PREFIX_DIR/bin/topos")"
 FOREIGN_DIGEST="$(sha256sum "$PLUGINS/README.operator")"
 UN_OUT="$(PREFIX="$PREFIX_DIR" ./scripts/uninstall.sh 2>&1)" || fail "uninstall exited non-zero
 $UN_OUT"
-for f in topos-plugin-smoke "$MANIFEST_A" "${MANIFEST_A%.json}.sig" "$MANIFEST_B" "${MANIFEST_B%.json}.sig"; do
+for f in topos-plugin-smoke "$MANIFEST_B" "${MANIFEST_B%.json}.sig"; do
   [ ! -e "$PLUGINS/$f" ] || fail "uninstall left $PLUGINS/$f"
 done
 [ "$(sha256sum "$PREFIX_DIR/bin/topos")" = "$KERNEL_DIGEST" ] || fail "uninstall touched the kernel at \$PREFIX/bin/topos"
 [ "$(sha256sum "$PLUGINS/README.operator")" = "$FOREIGN_DIGEST" ] || fail "uninstall touched the operator's foreign file"
 printf '%s' "$UN_OUT" | grep -q "left in place (not empty): $PLUGINS" || fail "uninstall did not report the surviving directory
 $UN_OUT"
-printf '%s' "$UN_OUT" | grep -q "removed 5 file(s)" || fail "uninstall did not report removing exactly the 5 placed files
+printf '%s' "$UN_OUT" | grep -q "removed 3 file(s)" || fail "uninstall did not report removing exactly the 3 placed files
 $UN_OUT"
 rm "$PLUGINS/README.operator"
 UN2_OUT="$(PREFIX="$PREFIX_DIR" ./scripts/uninstall.sh 2>&1)" || fail "second uninstall exited non-zero

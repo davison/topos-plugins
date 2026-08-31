@@ -7,8 +7,9 @@
 #     starts with "topos-plugin-" (a plugin binary);
 #   - each FILE directly inside that directory named
 #     topos-plugins-*.provenance.json or topos-plugins-*.provenance.sig
-#     (a release's signed manifest pair — every release's, since an
-#     update leaves older pairs beside the newest).
+#     (a release's signed manifest pair — every pair present, should an
+#     interrupted update ever have left an older one behind; a completed
+#     update converges to exactly one).
 #
 # After removal, the lib/topos/plugins and lib/topos directories are
 # removed with a NON-RECURSIVE rmdir only — a non-empty directory

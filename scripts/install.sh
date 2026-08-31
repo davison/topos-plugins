@@ -41,21 +41,36 @@
 #                                   file:// fixture tree), never which
 #                                   checks run.
 #
-# Sequence: preflight -> stage -> verify -> place. Placement does not
-# begin until every asset has verified, so an abort at any earlier point
-# leaves $PREFIX byte-unchanged. Each placed file is copied to a
-# temporary name inside the destination directory and completed with an
-# atomic mv -f rename — never written directly over the destination —
-# so a re-run over a running kernel/plugin process replaces the file
-# without a text-file-busy failure and an interrupted run leaves every
-# destination either wholly old bytes or wholly new bytes.
+# Sequence: preflight -> stage -> verify -> place -> converge. Placement
+# does not begin until every asset has verified, so an abort at any
+# earlier point leaves $PREFIX byte-unchanged. Placement itself is two
+# passes: every file is first copied to a temporary name INSIDE the
+# destination directory (mode set there), and only once every copy
+# exists are they renamed over their destinations in one pass of
+# same-directory renames — never written directly over the destination.
+# A failure during the copy pass (a full disk, say) removes the staged
+# copies and leaves the directory unchanged; the rename pass is
+# pre-checked (every destination absent or a regular file) so that,
+# with staging complete, it cannot fail for want of space or
+# permission. What remains is interruption by a signal mid-pass, which
+# leaves each destination wholly old or wholly new bytes, never torn —
+# re-running the same version repairs it. A re-run over a running
+# kernel/plugin process replaces the file without a text-file-busy
+# failure for the same reason.
 #
-# Updating IS re-running: `install.sh <newer tag>` replaces each binary
-# and places the newer release's manifest pair beside any older one.
-# The kernel scans every manifest in the directory and trusts a binary
-# the moment any validly-signed one names its on-disk digest
-# (kernel/pluginhost/provenance.go, D-08), so the older manifest is
-# inert, not a conflict; `uninstall.sh` removes them all.
+# Updating IS re-running: `install.sh <newer tag>` converges the
+# directory on the selected release. After the new fleet is placed, a
+# binary that an OLDER release of this repository placed (named by an
+# older topos-plugins-*.provenance.json still present) but that the new
+# release no longer publishes is removed — a retired or renamed plugin
+# does not linger, trusted by a stale manifest — and the older manifest
+# pairs are removed with it, so the directory holds exactly the
+# selected release's fleet and evidence. The kernel would scan every
+# manifest present and trust any match (kernel/pluginhost/provenance.go,
+# D-08), so coexisting manifests are legal — this installer simply never
+# leaves any, because it always places the whole set. Convergence runs
+# after placement; an interruption between the two leaves the new fleet
+# in place and the retirement to a re-run of the same version.
 #
 # This script never escalates privileges: an unwritable $PREFIX fails
 # loud, naming the directory and the `sudo make install` re-run for the
@@ -297,27 +312,93 @@ if ! "$PROVENANCE_VERIFIER" verify --dir "$STAGE" >"$STAGE/provenance-verify.out
 $(cat "$STAGE/provenance-verify.out")"
 fi
 
-# --- place ------------------------------------------------------------
-# Copy to a temporary name INSIDE the destination directory, set mode,
-# then complete with an atomic same-directory rename. Never write
-# directly over the destination path: the rename is what makes a re-run
-# over a live kernel/plugin process safe and what makes an interrupted
-# run leave whole-old or whole-new bytes, never a torn file. Binaries
-# are 0755; the manifest pair is data, 0644. The staged verifier is not
-# in this loop by construction.
-WRITTEN=()
-for rel in "${PLUGIN_BINARIES[@]}" "${PROVENANCE_MANIFESTS[@]}" "${PROVENANCE_SIGS[@]}"; do
-  dest="$PLUGINS_DIR/$rel"
+# --- place: pre-check --------------------------------------------------
+# Every destination must be absent or a regular file BEFORE any copy is
+# staged: `mv -f` cannot rename over a directory, and discovering that
+# halfway through the rename pass would leave a partially updated
+# fleet. Refused here, nothing has been written.
+PLACE_SET=("${PLUGIN_BINARIES[@]}" "${PROVENANCE_MANIFESTS[@]}" "${PROVENANCE_SIGS[@]}")
+for rel in "${PLACE_SET[@]}"; do
+  if [ -e "$PLUGINS_DIR/$rel" ] && [ ! -f "$PLUGINS_DIR/$rel" ]; then
+    fail "destination $PLUGINS_DIR/$rel exists and is not a regular file — refusing to place over it; nothing was written to $PREFIX"
+  fi
+done
+
+# --- place: copy pass -------------------------------------------------
+# Copy to a temporary name INSIDE the destination directory and set the
+# mode there. Binaries are 0755; the manifest pair is data, 0644. The
+# staged verifier is not in this loop by construction. Any failure in
+# this pass removes every staged copy (the EXIT trap below) and leaves
+# the directory as it was.
+STAGED_TMPS=()
+cleanup_place() {
+  rm -rf "$STAGE"
+  for t in "${STAGED_TMPS[@]}"; do
+    [ -e "$t" ] && rm -f "$t"
+  done
+  return 0
+}
+trap cleanup_place EXIT
+declare -A TMP_FOR
+for rel in "${PLACE_SET[@]}"; do
   case "$rel" in
     topos-plugin-*) mode=0755 ;;
     *) mode=0644 ;;
   esac
   tmp="$(mktemp "$PLUGINS_DIR/.topos-plugins-install.XXXXXX")" \
     || fail "cannot create a temporary file in $PLUGINS_DIR — re-run as: sudo make install (this script never escalates privileges itself)"
-  cp "$STAGE/$rel" "$tmp"
-  chmod "$mode" "$tmp"
-  mv -f "$tmp" "$dest"
-  WRITTEN+=("$dest")
+  STAGED_TMPS+=("$tmp")
+  cp "$STAGE/$rel" "$tmp" || fail "could not copy $rel into $PLUGINS_DIR (disk full?) — the staged copies were removed, nothing was placed"
+  chmod "$mode" "$tmp" || fail "could not set mode $mode on the staged copy of $rel — the staged copies were removed, nothing was placed"
+  TMP_FOR["$rel"]="$tmp"
+done
+
+# --- place: rename pass -----------------------------------------------
+# One pass of same-directory renames over pre-checked destinations —
+# each an atomic replacement, so a destination is wholly old or wholly
+# new bytes at every instant.
+WRITTEN=()
+for rel in "${PLACE_SET[@]}"; do
+  mv -f "${TMP_FOR[$rel]}" "$PLUGINS_DIR/$rel"
+  WRITTEN+=("$PLUGINS_DIR/$rel")
+done
+STAGED_TMPS=()
+
+# --- converge ---------------------------------------------------------
+# Retire what an older release of this repository placed and this one
+# no longer publishes: every topos-plugin-* name an OLDER
+# topos-plugins-*.provenance.json in the directory names (a manifest
+# this installer placed, so a binary it manages — never a foreign file,
+# never a binary a manifest from another publisher vouches for) that is
+# not in the new release's binary set is removed. Then the older
+# manifest pairs go, so the directory holds exactly this release's
+# fleet and evidence. Manifests are read by name only; their trust was
+# established when they were installed, and a stale one only ever
+# widens the removal set to binaries it names — which are ours.
+RETIRED=()
+OLDER_MANIFESTS=()
+for f in "$PLUGINS_DIR"/topos-plugins-*.provenance.json; do
+  [ -e "$f" ] || continue
+  [ "$(basename "$f")" != "${PROVENANCE_MANIFESTS[0]}" ] || continue
+  OLDER_MANIFESTS+=("$f")
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    case " ${PLUGIN_BINARIES[*]} " in
+      *" $name "*) continue ;;
+    esac
+    case " ${RETIRED[*]} " in
+      *" $name "*) continue ;;
+    esac
+    if [ -f "$PLUGINS_DIR/$name" ]; then
+      rm -f "$PLUGINS_DIR/$name"
+      RETIRED+=("$name")
+    fi
+  done < <(grep -oE '"name"[[:space:]]*:[[:space:]]*"topos-plugin-[a-z0-9-]+"' "$f" | sed -E 's/.*"(topos-plugin-[a-z0-9-]+)"$/\1/')
+done
+REMOVED_MANIFESTS=()
+for f in "${OLDER_MANIFESTS[@]}"; do
+  rm -f "$f" "${f%.provenance.json}.provenance.sig"
+  REMOVED_MANIFESTS+=("$(basename "$f")")
 done
 
 # --- report -----------------------------------------------------------
@@ -325,15 +406,12 @@ echo "install: topos-plugins $TAG installed into $PLUGINS_DIR (verifier: $PROVEN
 for path in "${WRITTEN[@]}"; do
   echo "install:   wrote $path"
 done
-OLDER=0
-for f in "$PLUGINS_DIR"/topos-plugins-*.provenance.json; do
-  [ -e "$f" ] || continue
-  [ "$(basename "$f")" != "${PROVENANCE_MANIFESTS[0]}" ] || continue
-  OLDER=$((OLDER + 1))
+for name in "${RETIRED[@]}"; do
+  echo "install:   retired $PLUGINS_DIR/$name — an older release placed it; $TAG does not publish it"
 done
-if [ "$OLDER" -gt 0 ]; then
-  echo "install:   $OLDER older release manifest(s) remain beside ${PROVENANCE_MANIFESTS[0]} — inert (the kernel trusts a binary the moment any valid manifest names its digest); make uninstall removes them all"
-fi
+for name in "${REMOVED_MANIFESTS[@]}"; do
+  echo "install:   removed older release manifest $name (and its .sig) — the directory now holds exactly $TAG's fleet and evidence"
+done
 echo "install:   topos-plugin-signal is not shipped prebuilt (cgo/SQLCipher) — build it locally with make build-signal and place it in the kernel's external plugin directory; see README.md"
 echo "install:   restart the installed kernel to pick up the new fleet"
 
