@@ -1,2 +1,6 @@
 /bin/
 /topos-plugin-demo
+
+# go build in a single-main-package module writes its default-output binary
+# into the module dir; never track it (task #1 review, finding 1)
+/plugins/filesystem/filesystem
