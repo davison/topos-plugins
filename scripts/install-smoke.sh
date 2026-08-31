@@ -606,4 +606,64 @@ expect_refusal "https://github.com/davison/topos-plugins/releases/tag/nightly" "
 expect_refusal "" "an empty URL"
 echo "==> Case PASS: latest-release URL validation"
 
+# ---------------------------------------------------------------------
+# Case: install-signal destination resolution and the trusted-directory
+# footgun — driven offline through the script's source guard
+# (M1-R7/DIST-04). Resolution order: explicit override, then
+# XDG_DATA_HOME, then the home fallback; a lib/topos/plugins
+# destination is refused by name before anything is written.
+# ---------------------------------------------------------------------
+echo "==> Case: install-signal destination resolution"
+# shellcheck source=scripts/install-signal.sh
+source ./scripts/install-signal.sh
+SIG_R="$(TOPOS_EXTERNAL_PLUGINS_DIR="/custom/ext" XDG_DATA_HOME="/xdg" resolve_external_dir)"
+[ "$SIG_R" = "/custom/ext|TOPOS_EXTERNAL_PLUGINS_DIR override" ] || fail "install-signal resolution: override did not win: $SIG_R"
+SIG_R="$(TOPOS_EXTERNAL_PLUGINS_DIR="" XDG_DATA_HOME="/xdg" resolve_external_dir)"
+[ "$SIG_R" = "/xdg/topos/plugins-external|kernel default (XDG_DATA_HOME)" ] || fail "install-signal resolution: XDG_DATA_HOME did not win: $SIG_R"
+SIG_R="$(TOPOS_EXTERNAL_PLUGINS_DIR="" XDG_DATA_HOME="" HOME="/home/op" resolve_external_dir)"
+[ "$SIG_R" = "/home/op/.local/share/topos/plugins-external|kernel default (~/.local/share)" ] || fail "install-signal resolution: home fallback wrong: $SIG_R"
+SIG_RC=0
+SIG_OUT="$(refuse_trusted_destination "/usr/local/lib/topos/plugins" 2>&1)" || SIG_RC=$?
+[ "$SIG_RC" -ne 0 ] || fail "install-signal: a trusted lib/topos/plugins destination was not refused"
+printf '%s' "$SIG_OUT" | grep -q "TRUSTED plugins directory" || fail "install-signal: the refusal did not name the footgun
+$SIG_OUT"
+refuse_trusted_destination "/home/op/.local/share/topos/plugins-external" || fail "install-signal: the legitimate external default was refused"
+echo "==> Case PASS: install-signal destination resolution"
+
+# ---------------------------------------------------------------------
+# Case: install-signal place-then-uninstall cycle — runs only when a
+# locally built bin/topos-plugin-signal exists (the cgo build needs the
+# system sqlcipher package; CI skips this LOUDLY and the operator's
+# machine proves it). Places 0755 into a temp override dir, leaves a
+# neighbour file alone, removes exactly one file on --uninstall.
+# ---------------------------------------------------------------------
+if [ -f bin/topos-plugin-signal ]; then
+  echo "==> Case: install-signal place-then-uninstall cycle"
+  SIG_DIR="$WORK/signal-external"
+  mkdir -p "$SIG_DIR"
+  printf 'a neighbour external plugin\n' > "$SIG_DIR/topos-plugin-neighbour"
+  SIG_NEIGHBOUR_DIGEST="$(sha256sum "$SIG_DIR/topos-plugin-neighbour")"
+  TOPOS_EXTERNAL_PLUGINS_DIR="$SIG_DIR" ./scripts/install-signal.sh >"$WORK/install-signal.out" 2>&1 \
+    || fail "install-signal failed:
+$(cat "$WORK/install-signal.out")"
+  [ -f "$SIG_DIR/topos-plugin-signal" ] || fail "install-signal placed nothing"
+  [ "$(stat -c '%a' "$SIG_DIR/topos-plugin-signal")" = "755" ] || fail "install-signal placed the wrong mode"
+  cmp -s bin/topos-plugin-signal "$SIG_DIR/topos-plugin-signal" || fail "install-signal placed different bytes"
+  grep -q "one-time steps" "$WORK/install-signal.out" || fail "install-signal did not print the consent-and-pin steps"
+  if [ -n "$(find "$SIG_DIR" -name '.topos-install-signal.*')" ]; then
+    fail "install-signal left a temporary file behind"
+  fi
+  TOPOS_EXTERNAL_PLUGINS_DIR="$SIG_DIR" ./scripts/install-signal.sh --uninstall >"$WORK/uninstall-signal.out" 2>&1 \
+    || fail "uninstall-signal failed:
+$(cat "$WORK/uninstall-signal.out")"
+  [ ! -e "$SIG_DIR/topos-plugin-signal" ] || fail "uninstall-signal left the binary"
+  [ "$(sha256sum "$SIG_DIR/topos-plugin-neighbour")" = "$SIG_NEIGHBOUR_DIGEST" ] || fail "uninstall-signal touched a neighbour file"
+  TOPOS_EXTERNAL_PLUGINS_DIR="$SIG_DIR" ./scripts/install-signal.sh --uninstall >"$WORK/uninstall-signal2.out" 2>&1 \
+    || fail "second uninstall-signal exited non-zero"
+  grep -q "already absent" "$WORK/uninstall-signal2.out" || fail "second uninstall-signal did not report the absent file"
+  echo "==> Case PASS: install-signal place-then-uninstall cycle"
+else
+  echo "==> Case SKIP: install-signal place-then-uninstall cycle (no bin/topos-plugin-signal — the cgo build needs the system sqlcipher package; run 'make build-signal' first to include this case)"
+fi
+
 echo "install-smoke: all cases passed"

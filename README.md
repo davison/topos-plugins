@@ -184,7 +184,10 @@ it locally (see `plugins/signal/README.md` for the per-distro
 `sqlcipher` package and the SQLite version floor):
 
 ```sh
-make build-signal      # -> bin/topos-plugin-signal
+make build-signal        # -> bin/topos-plugin-signal
+make install-signal      # build + place into the external plugin directory
+make uninstall-signal    # remove exactly that one file
+make test-signal         # the cgo suite (skipped by make test)
 ```
 
 A locally built binary carries no signed provenance, so it does not go

@@ -1,4 +1,4 @@
-.PHONY: build build-signal test verifier install uninstall install-check
+.PHONY: build build-signal test test-signal verifier install uninstall install-check install-signal uninstall-signal
 
 # STATIC_PLUGINS names, in exactly one place, the plugins `make build`
 # produces with CGO_ENABLED=0 — the same list release.yml builds, signs
@@ -38,6 +38,14 @@ build:
 build-signal:
 	mkdir -p bin
 	cd plugins/signal && CGO_ENABLED=1 go build -tags libsqlcipher -o ../../bin/topos-plugin-signal .
+
+# test-signal builds and tests the one cgo module against the system
+# SQLCipher library — the suite `test` (below) skips. Requires the
+# sqlcipher package; the untagged form is deliberately not offered
+# (without -tags libsqlcipher the suite fails on the SQLite version
+# floor rather than testing the real driver).
+test-signal:
+	cd plugins/signal && CGO_ENABLED=1 go build -tags libsqlcipher ./... && CGO_ENABLED=1 go test -tags libsqlcipher ./...
 
 # test builds and tests every workspace module except signal, whose
 # suite needs CGO_ENABLED=1 against the system SQLCipher library — the
@@ -84,6 +92,28 @@ install:
 # never named. Idempotent.
 uninstall:
 	PREFIX="$(PREFIX)" ./scripts/uninstall.sh
+
+# install-signal builds the Signal plugin (through build-signal — the
+# ONE place the cgo flags live) and places it atomically into the
+# installed instance's EXTERNAL plugin directory (M1-R7/DIST-04),
+# never $(PREFIX)/lib/topos/plugins: a locally built binary carries no
+# signed provenance, so the trusted directory would refuse it at
+# launch. scripts/install-signal.sh resolves the kernel's own default
+# ($XDG_DATA_HOME/topos/plugins-external, ~/.local/share fallback;
+# TOPOS_EXTERNAL_PLUGINS_DIR overrides for a config that names its own
+# [plugins] external_dir) and prints the one-time consent-and-pin
+# steps.
+install-signal: build-signal
+	./scripts/install-signal.sh
+
+# uninstall-signal removes the locally built Signal binary from the
+# external plugin directory — exactly one file, never the directory or
+# anything else in it. Deliberately separate from `uninstall`: the
+# Signal binary lives OUTSIDE the prefix, in a directory `uninstall` is
+# forbidden to touch (its removal set is closed over what `install`
+# places).
+uninstall-signal:
+	./scripts/install-signal.sh --uninstall
 
 # install-check runs the hermetic behavioural guard for install and
 # uninstall (scripts/install-smoke.sh): a fixture release signed with a

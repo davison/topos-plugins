@@ -10,8 +10,8 @@ present at build time.
 
 ## Build prerequisite: install `sqlcipher` first
 
-Before running `make signal` or `make test-signal`, install the system
-`sqlcipher` package:
+Before running `make build-signal` or `make test-signal` (both from
+this repository's root), install the system `sqlcipher` package:
 
 ```bash
 # Arch
@@ -21,11 +21,32 @@ sudo pacman -S sqlcipher
 sudo apt-get install libsqlcipher-dev
 ```
 
-`make signal` and `make test-signal` both build with `CGO_ENABLED=1` and
-the `libsqlcipher` build tag, and both will fail to link if this package
-isn't installed. No other plugin in this repository requires a C
-toolchain — the kernel itself, and every other plugin, stay
-`CGO_ENABLED=0`.
+`make build-signal` and `make test-signal` both build with
+`CGO_ENABLED=1` and the `libsqlcipher` build tag, and both will fail to
+link if this package isn't installed. No other plugin in this
+repository requires a C toolchain — the kernel, and every other plugin,
+stay `CGO_ENABLED=0`. Always use the tag: without it the suite fails on
+the SQLite version floor instead of testing the real driver.
+
+## Installing beside an installed kernel
+
+```bash
+make install-signal      # build + place into the external plugin directory
+make uninstall-signal    # remove exactly that one file
+```
+
+`make install-signal` builds through `build-signal` and places the
+binary atomically into the installed instance's **external** plugin
+directory — the kernel's default (`$XDG_DATA_HOME/topos/plugins-external`,
+falling back to `~/.local/share/topos/plugins-external`), or the
+directory your config's `[plugins] external_dir` names via
+`TOPOS_EXTERNAL_PLUGINS_DIR=<dir>`. It never touches the trusted
+`lib/topos/plugins` directory (and refuses it by name): a locally built
+binary carries no signed provenance, so the kernel's launch gate would
+refuse it there. After placing, restart the kernel and add the Signal
+source once through the app's untrusted-add consent flow — it runs
+pinned and badged untrusted, and rebuilt bytes are re-accepted through
+the chip's re-pin flow.
 
 ## SQLCipher version floor: refuses to run below SQLite 3.51.3
 
@@ -86,12 +107,10 @@ to it, and both prove exactly that:
 ```bash
 # Byte-identical proof against your real database (never copies it)
 WEBSPACES_SIGNAL_LIVE_IT=1 go test -tags libsqlcipher -run TestLiveDatabaseByteIdentical -v ./...
-
-# Full end-to-end sync + serve smoke test against your real database,
-# using a throwaway config that never touches your real
-# ~/.config/topos/config.toml
-SIGNAL_SMOKE_KEYWORD="your-real-conversation-or-group-name" ./scripts/signal-readonly-smoke.sh
 ```
 
-Both are safe to run repeatedly — neither ever mutates, checkpoints, or
-copies your Signal Desktop database.
+Safe to run repeatedly — it never mutates, checkpoints, or copies your
+Signal Desktop database. (The kernel-side end-to-end smoke script this
+section once named, `signal-readonly-smoke.sh`, retired with the plugin
+split — the end-to-end story is the kernel's own dev loop and the
+operator's live instance now.)
