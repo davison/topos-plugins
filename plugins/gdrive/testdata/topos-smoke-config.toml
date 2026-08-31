@@ -1,0 +1,89 @@
+# testdata/topos-smoke-config.toml
+#
+# A throwaway host config for the Phase 1 D-01/D-02 host smoke test
+# (.planning/phases/01-skeleton-contract-surface/01-02-PLAN.md). Point a
+# locally installed `topos` host at this file with
+# `--config testdata/topos-smoke-config.toml` (or `TOPOS_CONFIG=...`) so
+# the walkthrough never reads or writes the operator's production config
+# (`~/.config/topos/config.toml`) or production index
+# (`~/.local/share/topos/index.db`).
+#
+# Index/data-dir isolation: none of this repository's four permitted
+# clean-room inputs (see CLAUDE.md) document a config.toml key for
+# relocating the host's index/runtime-data directory — that is host-kernel
+# CLI surface, outside contract/plugin-contract.md's scope. Rather than
+# guess at an unverified key name, isolation is achieved operationally:
+# `docs/smoke-test-phase1.md`'s protocol runs the host for this walkthrough
+# with a throwaway `XDG_DATA_HOME` exported for that shell session only
+# (01-RESEARCH.md's own filesystem inspection observed this operator's
+# `index.db` and `plugins-external` both living under the same
+# `$XDG_DATA_HOME/topos/` root, so redirecting `XDG_DATA_HOME` redirects
+# both). The `[plugins] external_dir` key below is set EXPLICITLY, as a
+# literal path independent of `XDG_DATA_HOME`, precisely so that
+# redirection does not also hide the binary this file's own smoke test
+# just installed.
+#
+# This file is deliberately written as a teaching document, not a bare
+# fixture — per CONTEXT.md D-04 it is reused twice: once here for Phase 1's
+# smoke test, and again as a seed for Phase 5's end-to-end run and for the
+# OPS-02 setup documentation. It is safe to commit: every credential-shaped
+# value below is an environment-variable reference, never a literal
+# (OPS-03).
+
+[plugins]
+# Most operators never set this key at all — the external plugin directory
+# defaults per-OS with no config required
+# (contract/plugin-contract.md:204-214): `$XDG_DATA_HOME/topos/plugins-
+# external`, falling back to `~/.local/share/topos/plugins-external` when
+# `XDG_DATA_HOME` is unset. It is set explicitly here, as a literal path,
+# only so this smoke test is reproducible regardless of which
+# `XDG_DATA_HOME` the host process is launched with (see the isolation
+# note above) and so the operator can see, in one place, exactly which
+# directory the kernel's tier decision is being made from. This is the
+# value that resolved on the machine this walkthrough was authored
+# against — adjust it for your own machine if you reuse this file
+# elsewhere (Phase 5, or a different operator's setup).
+external_dir = "/home/darren/.local/share/topos/plugins-external"
+
+[sources.gdrive]
+# The bare binary filename this plugin builds to — never a path. The
+# contract requires this exactly: `[sources.<id>] plugin` resolves only
+# inside `[plugins] dir`/`[plugins] external_dir` and nowhere else, and a
+# value carrying a path separator or a `.`/`..` segment fails config load
+# before the file is even written to disk
+# (contract/plugin-contract.md:281-289).
+plugin = "topos-plugin-gdrive"
+
+[sources.gdrive.extras]
+# The kernel runs an `os.Expand` pass over every value in this block
+# before this plugin's subprocess ever sees `WEBSPACES_SOURCE_CONFIG`
+# (contract/plugin-contract.md:471-475) — the plugin never receives a
+# literal, only whatever the referenced environment variable currently
+# holds. Phase 1's plugin deliberately reads none of these three values
+# yet (CONTRACT-GAPS.md GAP-04: `Describe` performs zero configuration
+# validation); they exist here so the host's add-source form has
+# something real to render and so this file is ready, unmodified, for
+# Phase 2's real auth flow.
+#
+# client_id/client_secret reference the exact same two variable names
+# PRD.md locks for the standalone `auth` subcommand (PRD.md:102-109) — one
+# environment-variable vocabulary end to end. Export throwaway values for
+# all three before running this smoke test; Phase 1 validates none of
+# them.
+client_id = "${GDRIVE_CLIENT_ID}"
+client_secret = "${GDRIVE_CLIENT_SECRET}"
+folder_id = "${GDRIVE_SMOKE_FOLDER_ID}"
+
+[webspaces.gdrive-smoke]
+# In Phase 1, Match unconditionally returns codes.Unavailable, so no item
+# will ever actually match this keyword — this block exists only because
+# the contract's own minimal config shape includes one
+# (contract/plugin-contract.md:1050-1067), and because Phase 5's real
+# end-to-end run will need it populated with a real folder-path segment
+# from this plugin's declared "folders" match vocabulary (PRD.md:148).
+# `keywords` here is the webspace-level fallback: with no explicit
+# `[webspaces.gdrive-smoke.match.gdrive]` block, the kernel fans this list
+# across every field in `match_vocabulary` and sends the result as
+# `match_fields` on every Match call for this instance
+# (contract/plugin-contract.md:1069-1072).
+keywords = ["gdrive-smoke-test"]
