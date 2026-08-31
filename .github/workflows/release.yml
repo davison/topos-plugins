@@ -50,6 +50,13 @@ jobs:
           make build
           make verifier
 
+      # --contract records the fleet's contract GENERATION — topos.v2,
+      # the value every binary here declares at Describe
+      # (sdk.ContractVersion in davison/topos; releases before v0.3.1
+      # recorded topos.v1 by mistake, harmless because the kernel's
+      # launch gate reads the runtime Describe declaration, never this
+      # recorded field — Decision on davison/topos#17).
+      #
       # The signing key is referenced exactly twice in this step: once as
       # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
       # secrets. value. It is never passed as a --flag (where it would
@@ -64,7 +71,7 @@ jobs:
             --repo davison/topos-plugins \
             --tag "$GITHUB_REF_NAME" \
             --version "$GITHUB_REF_NAME" \
-            --contract topos.v1 \
+            --contract topos.v2 \
             --out-dir bin \
             bin/topos-plugin-*
 
