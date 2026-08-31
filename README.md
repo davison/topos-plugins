@@ -7,15 +7,15 @@ this repository's own tag-triggered release workflow, and installed onto
 a machine beside an installed topos kernel by this repository's own
 `make install` ([davison/topos#6](https://github.com/davison/topos/issues/6)).
 
-| Plugin | Moved from | Notes |
-|---|---|---|
-| `plugins/filesystem` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/filesystem) | clean copy, module path renamed; history stays in the kernel repo |
-| `plugins/paperless` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/paperless) | clean copy, module path renamed |
-| `plugins/proton` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/proton) | clean copy, module path renamed |
-| `plugins/silverbullet` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/silverbullet) | clean copy, module path renamed |
-| `plugins/whatsapp` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/whatsapp) | clean copy, module path renamed |
-| `plugins/signal` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/signal) | clean copy, module path renamed; cgo — built locally (`make build-signal`), never shipped prebuilt |
-| `plugins/gdrive` | [davison/topos-plugin-gdrive@563a21b](https://github.com/davison/topos-plugin-gdrive/tree/563a21b) | folded in, superseding that repo: Go module only (sources, testdata, README); the clean-room scaffolding stays behind |
+| Plugin | Docs | Moved from | Notes |
+|---|---|---|---|
+| `plugins/filesystem` | [README](plugins/filesystem/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/filesystem) | clean copy, module path renamed; history stays in the kernel repo |
+| `plugins/paperless` | [README](plugins/paperless/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/paperless) | clean copy, module path renamed |
+| `plugins/proton` | [README](plugins/proton/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/proton) | clean copy, module path renamed |
+| `plugins/silverbullet` | [README](plugins/silverbullet/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/silverbullet) | clean copy, module path renamed |
+| `plugins/whatsapp` | [README](plugins/whatsapp/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/whatsapp) | clean copy, module path renamed |
+| `plugins/signal` | [README](plugins/signal/README.md) | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/signal) | clean copy, module path renamed; cgo — built locally (`make build-signal`), never shipped prebuilt |
+| `plugins/gdrive` | [README](plugins/gdrive/README.md) | [davison/topos-plugin-gdrive@563a21b](https://github.com/davison/topos-plugin-gdrive/tree/563a21b) | folded in, superseding that repo: Go module only (sources, testdata, README); the clean-room scaffolding stays behind |
 
 `cmd/topos-plugin-demo/` is the trivial plugin that first proved the
 signing pipeline. It is no longer shipped in releases; it stays as the
