@@ -3,4 +3,10 @@ go 1.25.0
 use (
 	.
 	./plugins/filesystem
+	./plugins/gdrive
+	./plugins/paperless
+	./plugins/proton
+	./plugins/signal
+	./plugins/silverbullet
+	./plugins/whatsapp
 )
