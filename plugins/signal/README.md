@@ -78,7 +78,7 @@ read = false
 handoff = false
 ```
 
-See `config.example.toml` for the fully-commented reference block. There
+The fully-commented reference block is reproduced below, under "Configuration reference". There
 is no key, token, or secret to configure here at all — the SQLCipher
 decryption key is resolved entirely at runtime from files already inside
 `path` (Signal Desktop's own `config.json`), branching automatically
@@ -114,3 +114,85 @@ Signal Desktop database. (The kernel-side end-to-end smoke script this
 section once named, `signal-readonly-smoke.sh`, retired with the plugin
 split — the end-to-end story is the kernel's own dev loop and the
 operator's live instance now.)
+
+## Configuration (operator page)
+
+Unlike every other source in this project, Signal has no `base_url` or
+`token` — it reads a local file, not a network endpoint. The only
+required key is `path`, Signal Desktop's own config directory:
+
+```toml
+[sources.signal]
+plugin = "topos-plugin-signal"
+path = "~/.config/Signal"
+
+[sources.signal.agent]
+read = false
+handoff = false
+```
+
+Match vocabulary: `conversations`.
+
+There is no key, token, or secret to configure here at all — see Security
+& Privacy Notes, below. The fully-commented reference block is reproduced below, under "Configuration reference".
+
+## Gotchas
+
+- A distro `sqlcipher` package older than the 3.51.3 SQLite floor fails
+  loudly at startup, naming the version it found. The fix is to upgrade
+  the system package, not to work around the check.
+- This plugin binary is not published as a prebuilt artifact; `make
+  signal` is the local build path (see Install Requirements, above).
+
+## Security & Privacy Notes
+
+- **Read-only:** this plugin never writes to Signal Desktop's database. It
+  opens `db.sqlite` with a `mode=ro` DSN and never `INSERT`s, `UPDATE`s,
+  `DELETE`s, `VACUUM`s, or checkpoints the WAL. `readonly_test.go` walks
+  this package's own AST and fails the build on any write-shaped SQL
+  reference; `byte_identical_test.go` proves a full Match+Fetch cycle
+  leaves the database byte-identical.
+- **Credentials:** the SQLCipher decryption key is never stored in this
+  project's config — it is resolved entirely at runtime from Signal
+  Desktop's own `config.json` under `path`, branching automatically
+  between the legacy plaintext-key shape and the modern Electron
+  `safeStorage`-wrapped shape. There is nothing secret to put in topos
+  config.
+- **Egress:** none — this plugin talks only to a local file on disk, never
+  the network.
+
+## Configuration reference
+
+The fully-commented `[sources.<name>]` block for this plugin — moved verbatim from the kernel's former `config.example.toml` (davison/topos#24, M1-R2): every key with its purpose, default and validation rule. Copy it into your own `config.toml` under `[sources.<your-instance-name>]`; the kernel-level keys every source shares (`display_name`, `[sources.<name>.agent]`) are documented in the kernel's `config.example.toml`.
+
+```toml
+[sources.signal]
+# plugin: the plugin binary's filename, resolved inside [plugins] dir.
+# Validation: none at load time; a missing file fails at startup, by path.
+plugin = "topos-plugin-signal"
+
+# display_name: the kernel-level key every source shares — optional, a
+# human-readable label; see the kernel's config.example.toml.
+display_name = "Signal"
+
+# path: Signal Desktop's own config directory — the source of both
+# config.json (SQLCipher key resolution) and sql/db.sqlite (the message
+# database itself, opened strictly read-only). A leading "~" is expanded
+# by the plugin subprocess itself, not the kernel (kernel/config/types.go's
+# Path doc comment).
+#
+# This source needs NO base_url, NO token, and NO environment variable at
+# all — unlike every other source in this file, the SQLCipher decryption
+# key is resolved entirely at runtime from files inside this directory
+# (Signal Desktop's own config.json), never stored in this project's own
+# config or environment (SRC-02).
+# Validation: kernel/config.Validate accepts a source declaring only
+# path, in place of base_url+token; a source declaring none of the three
+# fails config load naming both accepted shapes.
+# Default Signal Desktop location on Linux: "~/.config/Signal".
+path = "~/.config/Signal"
+
+[sources.signal.agent]
+read = false
+handoff = false
+```
