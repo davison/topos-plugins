@@ -33,10 +33,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build the demo plugin binary
+      - name: Build the plugin binaries
         run: |
           mkdir -p bin
           go build -o bin/topos-plugin-demo ./cmd/topos-plugin-demo
+          (cd plugins/filesystem && go build -o ../../bin/topos-plugin-filesystem .)
 
       # The signing key is referenced exactly twice in this step: once as
       # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
@@ -62,18 +63,20 @@ jobs:
             --version "$GITHUB_REF_NAME" \
             --contract topos.v1 \
             --out-dir bin \
-            bin/topos-plugin-demo
+            bin/topos-plugin-demo \
+            bin/topos-plugin-filesystem
 
       - name: Hash and publish release assets
         run: |
-          (cd bin && sha256sum topos-plugin-demo topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
+          (cd bin && sha256sum topos-plugin-demo topos-plugin-filesystem topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
           gh release create "$GITHUB_REF_NAME" \
             bin/topos-plugin-demo \
+            bin/topos-plugin-filesystem \
             bin/topos-plugins-*.provenance.json \
             bin/topos-plugins-*.provenance.sig \
             bin/checksums.txt \
             --title "$GITHUB_REF_NAME" \
-            --notes "topos-plugins seed release — see README.md. Signed by this repository's own tag-triggered workflow." \
+            --notes "topos-plugins release — demo and filesystem plugins, signed by this repository's own tag-triggered workflow. See README.md." \
             --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
