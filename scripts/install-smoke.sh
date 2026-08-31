@@ -152,7 +152,7 @@ regen_checksums() {
 # exit status into $INSTALL_RC. Assertions are the caller's.
 run_install() {
   INSTALL_RC=0
-  INSTALL_OUT="$(PATH="$PATH_NO_VERIFIER" PREFIX="$1" TOPOS_PLUGINS_RELEASE_BASE_URL="$2" ./scripts/install.sh "$3" 2>&1)" \
+  INSTALL_OUT="$(PATH="${RUN_INSTALL_PATH_PREFIX:+$RUN_INSTALL_PATH_PREFIX:}$PATH_NO_VERIFIER" PREFIX="$1" TOPOS_PLUGINS_RELEASE_BASE_URL="$2" ./scripts/install.sh "$3" 2>&1)" \
     || INSTALL_RC=$?
 }
 
@@ -271,6 +271,107 @@ $INSTALL_OUT"
 "$VERIFIER" verify --dir "$RETIRE_PLUGINS" >"$WORK/verify-retire.out" 2>&1 || fail "retire case: updated directory does not verify:
 $(cat "$WORK/verify-retire.out")"
 echo "==> Case PASS: update retires a plugin the newer release drops"
+
+# ---------------------------------------------------------------------
+# Case: a same-name foreign replacement survives retirement (PR #9
+# review round 2, finding 1). Release A placed two binaries; the
+# operator then replaced one with different bytes; release B drops that
+# name. The name is a retirement candidate, but the on-disk bytes are
+# not the ones A's manifest vouches for — the file must be left in
+# place and reported, while the stale manifest pair still goes.
+# ---------------------------------------------------------------------
+echo "==> Case: retirement leaves a same-name foreign replacement"
+FOREIGN_PREFIX="$WORK/prefix-retire-foreign"
+FOREIGN_PLUGINS="$FOREIGN_PREFIX/lib/topos/plugins"
+run_install "$FOREIGN_PREFIX" "file://$WORK/release-retire" "$TAG_A"
+[ "$INSTALL_RC" -eq 0 ] || fail "foreign case: install of $TAG_A failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+printf 'the operator replaced this binary\n' > "$FOREIGN_PLUGINS/topos-plugin-smokedemo"
+chmod 0755 "$FOREIGN_PLUGINS/topos-plugin-smokedemo"
+FOREIGN_DIGEST_BEFORE="$(sha256sum "$FOREIGN_PLUGINS/topos-plugin-smokedemo")"
+run_install "$FOREIGN_PREFIX" "file://$WORK/release-retire" "$TAG_B"
+[ "$INSTALL_RC" -eq 0 ] || fail "foreign case: update to $TAG_B failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+[ -f "$FOREIGN_PLUGINS/topos-plugin-smokedemo" ] || fail "foreign case: the replaced binary was deleted — retirement removed bytes the old manifest never vouched for"
+[ "$(sha256sum "$FOREIGN_PLUGINS/topos-plugin-smokedemo")" = "$FOREIGN_DIGEST_BEFORE" ] || fail "foreign case: the replaced binary's bytes changed"
+printf '%s' "$INSTALL_OUT" | grep -q "left in place: $FOREIGN_PLUGINS/topos-plugin-smokedemo" || fail "foreign case: the kept file was not reported
+$INSTALL_OUT"
+[ ! -e "$FOREIGN_PLUGINS/$MANIFEST_A" ] || fail "foreign case: the stale manifest survived"
+echo "==> Case PASS: retirement leaves a same-name foreign replacement"
+
+# ---------------------------------------------------------------------
+# Case: forged evidence cannot widen the deletion set (round 2,
+# finding 1). A manifest pair in this repository's filename shape but
+# with a broken signature names topos-plugin-victim; a file of that
+# name exists. The forged evidence does not authenticate, so the
+# victim is left in place — while the forged pair itself, sitting in
+# our namespace, is removed.
+# ---------------------------------------------------------------------
+echo "==> Case: forged evidence does not retire a binary"
+VICTIM_PREFIX="$WORK/prefix-forged"
+VICTIM_PLUGINS="$VICTIM_PREFIX/lib/topos/plugins"
+run_install "$VICTIM_PREFIX" "file://$WORK/release" "$TAG_A"
+[ "$INSTALL_RC" -eq 0 ] || fail "forged case: install failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+printf 'an innocent bystander binary\n' > "$VICTIM_PLUGINS/topos-plugin-victim"
+chmod 0755 "$VICTIM_PLUGINS/topos-plugin-victim"
+FORGED="$VICTIM_PLUGINS/topos-plugins-v0.0.9-forged.provenance.json"
+sed 's/topos-plugin-smoke/topos-plugin-victim/g' "$WORK/release/download/$TAG_A/$MANIFEST_A" > "$FORGED"
+cp "$WORK/release/download/$TAG_A/${MANIFEST_A%.json}.sig" "${FORGED%.provenance.json}.provenance.sig"
+VICTIM_DIGEST="$(sha256sum "$VICTIM_PLUGINS/topos-plugin-victim")"
+run_install "$VICTIM_PREFIX" "file://$WORK/release" "$TAG_B"
+[ "$INSTALL_RC" -eq 0 ] || fail "forged case: update failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+[ -f "$VICTIM_PLUGINS/topos-plugin-victim" ] || fail "forged case: the victim binary was deleted on forged evidence"
+[ "$(sha256sum "$VICTIM_PLUGINS/topos-plugin-victim")" = "$VICTIM_DIGEST" ] || fail "forged case: the victim binary's bytes changed"
+printf '%s' "$INSTALL_OUT" | grep -q "left in place: $VICTIM_PLUGINS/topos-plugin-victim" || fail "forged case: the kept victim was not reported
+$INSTALL_OUT"
+[ ! -e "$FORGED" ] || fail "forged case: the forged manifest survived in our namespace"
+echo "==> Case PASS: forged evidence does not retire a binary"
+
+# ---------------------------------------------------------------------
+# Case: an injected placement-copy failure removes every staged copy
+# and preserves the destinations (round 2, finding 2). A cp shim first
+# on PATH fails any copy whose destination is a staged
+# .topos-plugins-install.* file, so the copy pass dies after mktemp;
+# the EXIT trap must sweep the staged temporaries and the previously
+# installed tree must be byte-identical.
+# ---------------------------------------------------------------------
+echo "==> Case: placement-copy failure cleans staged copies, preserves destinations"
+CPFAIL_PREFIX="$WORK/prefix-cpfail"
+CPFAIL_PLUGINS="$CPFAIL_PREFIX/lib/topos/plugins"
+run_install "$CPFAIL_PREFIX" "file://$WORK/release" "$TAG_A"
+[ "$INSTALL_RC" -eq 0 ] || fail "cpfail case: seed install failed (rc=$INSTALL_RC)
+$INSTALL_OUT"
+manifest_of_prefix "$CPFAIL_PREFIX" > "$WORK/cpfail-before"
+SHIM_DIR="$WORK/cp-shim"
+mkdir -p "$SHIM_DIR"
+REAL_CP="$(command -v cp)"
+cat > "$SHIM_DIR/cp" <<SHIM
+#!/usr/bin/env bash
+for arg in "\$@"; do
+  case "\$arg" in
+    */.topos-plugins-install.*)
+      echo "cp-shim: injected failure for \$arg" >&2
+      exit 1
+      ;;
+  esac
+done
+exec "$REAL_CP" "\$@"
+SHIM
+chmod 0755 "$SHIM_DIR/cp"
+RUN_INSTALL_PATH_PREFIX="$SHIM_DIR" run_install "$CPFAIL_PREFIX" "file://$WORK/release" "$TAG_B"
+unset RUN_INSTALL_PATH_PREFIX
+[ "$INSTALL_RC" -ne 0 ] || fail "cpfail case: install exited 0 under the failing cp"
+printf '%s' "$INSTALL_OUT" | grep -q "could not copy" || fail "cpfail case: the copy failure was not named
+$INSTALL_OUT"
+if [ -n "$(find "$CPFAIL_PLUGINS" -name '.topos-plugins-install.*' 2>/dev/null)" ]; then
+  fail "cpfail case: staged copies were left behind in $CPFAIL_PLUGINS"
+fi
+manifest_of_prefix "$CPFAIL_PREFIX" > "$WORK/cpfail-after"
+cmp -s "$WORK/cpfail-before" "$WORK/cpfail-after" || fail "cpfail case: the failed placement changed the installed tree:
+$(diff "$WORK/cpfail-before" "$WORK/cpfail-after" || true)"
+echo "==> Case PASS: placement-copy failure cleans staged copies, preserves destinations"
 
 # ---------------------------------------------------------------------
 # Case: a destination that is not a regular file — the placement

@@ -52,8 +52,9 @@
 # copies and leaves the directory unchanged; the rename pass is
 # pre-checked (every destination absent or a regular file) so that,
 # with staging complete, it cannot fail for want of space or
-# permission. What remains is interruption by a signal mid-pass, which
-# leaves each destination wholly old or wholly new bytes, never torn —
+# permission. The rename pass can still fail or be interrupted — an I/O
+# error, a permissions race, a signal — and any such interruption leaves
+# each destination wholly old or wholly new bytes, never torn;
 # re-running the same version repairs it. A re-run over a running
 # kernel/plugin process replaces the file without a text-file-busy
 # failure for the same reason.
@@ -62,10 +63,17 @@
 # directory on the selected release. After the new fleet is placed, a
 # binary that an OLDER release of this repository placed (named by an
 # older topos-plugins-*.provenance.json still present) but that the new
-# release no longer publishes is removed — a retired or renamed plugin
+# release no longer publishes is retired — a retired or renamed plugin
 # does not linger, trusted by a stale manifest — and the older manifest
 # pairs are removed with it, so the directory holds exactly the
-# selected release's fleet and evidence. The kernel would scan every
+# selected release's fleet and evidence. Retirement authenticates
+# before it removes: a candidate is deleted only when the verifier
+# confirms a validly-signed OLDER MANIFEST OF THIS REPOSITORY vouches
+# for the exact bytes on disk. A same-name file whose bytes differ (a
+# replacement the operator made), or one whose only valid evidence is
+# another publisher's manifest, or one named only by evidence that does
+# not authenticate, is left in place and reported — never ours to
+# remove. The kernel would scan every
 # manifest present and trust any match (kernel/pluginhost/provenance.go,
 # D-08), so coexisting manifests are legal — this installer simply never
 # leaves any, because it always places the whole set. Convergence runs
@@ -366,34 +374,61 @@ STAGED_TMPS=()
 
 # --- converge ---------------------------------------------------------
 # Retire what an older release of this repository placed and this one
-# no longer publishes: every topos-plugin-* name an OLDER
-# topos-plugins-*.provenance.json in the directory names (a manifest
-# this installer placed, so a binary it manages — never a foreign file,
-# never a binary a manifest from another publisher vouches for) that is
-# not in the new release's binary set is removed. Then the older
-# manifest pairs go, so the directory holds exactly this release's
-# fleet and evidence. Manifests are read by name only; their trust was
-# established when they were installed, and a stale one only ever
-# widens the removal set to binaries it names — which are ours.
+# no longer publishes. The candidate set is every topos-plugin-* name a
+# non-current topos-plugins-*.provenance.json in the directory names
+# and the new release does not; but a name proves nothing about the
+# bytes now at that path, so each candidate is AUTHENTICATED before
+# removal: the same resolved verifier re-verifies the on-disk binary
+# against every manifest present, and the candidate is removed only
+# when the vouching evidence is one of this repository's own older
+# manifests — i.e. a validly-signed older release manifest names it
+# and its on-disk digest still matches. A digest mismatch (the
+# operator replaced the file), evidence from another publisher's
+# manifest, or evidence that does not authenticate at all leaves the
+# file in place, reported by name. The older manifest pairs (this
+# repository's filename shape, current release's excepted) are then
+# removed regardless — stale or forged evidence in our own namespace
+# does not linger — so the directory holds exactly this release's
+# fleet and evidence, plus anything that is not ours to touch.
 RETIRED=()
+KEPT=()
 OLDER_MANIFESTS=()
 for f in "$PLUGINS_DIR"/topos-plugins-*.provenance.json; do
   [ -e "$f" ] || continue
   [ "$(basename "$f")" != "${PROVENANCE_MANIFESTS[0]}" ] || continue
   OLDER_MANIFESTS+=("$f")
+done
+RETIRE_CANDIDATES=()
+for f in "${OLDER_MANIFESTS[@]}"; do
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     case " ${PLUGIN_BINARIES[*]} " in
       *" $name "*) continue ;;
     esac
-    case " ${RETIRED[*]} " in
+    case " ${RETIRE_CANDIDATES[*]} " in
       *" $name "*) continue ;;
     esac
-    if [ -f "$PLUGINS_DIR/$name" ]; then
-      rm -f "$PLUGINS_DIR/$name"
-      RETIRED+=("$name")
-    fi
+    RETIRE_CANDIDATES+=("$name")
   done < <(grep -oE '"name"[[:space:]]*:[[:space:]]*"topos-plugin-[a-z0-9-]+"' "$f" | sed -E 's/.*"(topos-plugin-[a-z0-9-]+)"$/\1/')
+done
+for name in "${RETIRE_CANDIDATES[@]}"; do
+  [ -f "$PLUGINS_DIR/$name" ] || continue
+  evidence=""
+  if verify_out="$("$PROVENANCE_VERIFIER" verify --dir "$PLUGINS_DIR" --name "$name" 2>&1)"; then
+    evidence="$(printf '%s\n' "$verify_out" | sed -n "s/^$name: OK (\(.*\))\$/\1/p")"
+  fi
+  OWNED=""
+  if [ -n "$evidence" ]; then
+    for f in "${OLDER_MANIFESTS[@]}"; do
+      [ "$(basename "$f")" = "$evidence" ] && OWNED=1
+    done
+  fi
+  if [ -n "$OWNED" ]; then
+    rm -f "$PLUGINS_DIR/$name"
+    RETIRED+=("$name")
+  else
+    KEPT+=("$name")
+  fi
 done
 REMOVED_MANIFESTS=()
 for f in "${OLDER_MANIFESTS[@]}"; do
@@ -407,7 +442,10 @@ for path in "${WRITTEN[@]}"; do
   echo "install:   wrote $path"
 done
 for name in "${RETIRED[@]}"; do
-  echo "install:   retired $PLUGINS_DIR/$name — an older release placed it; $TAG does not publish it"
+  echo "install:   retired $PLUGINS_DIR/$name — a validly-signed older release manifest vouches for its exact bytes and $TAG does not publish it"
+done
+for name in "${KEPT[@]}"; do
+  echo "install:   left in place: $PLUGINS_DIR/$name — an older manifest names it, but the on-disk bytes are not the ones this repository's older evidence vouches for (a replacement, another publisher's plugin, or unauthenticated evidence) — not ours to remove"
 done
 for name in "${REMOVED_MANIFESTS[@]}"; do
   echo "install:   removed older release manifest $name (and its .sig) — the directory now holds exactly $TAG's fleet and evidence"
