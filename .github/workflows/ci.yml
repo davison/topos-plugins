@@ -1,7 +1,10 @@
-# Builds and tests every module in the workspace on each push and pull
-# request — the check `gh codecrew task finish` gates on. Mirrors the
-# release workflow's conventions: official actions only, pinned to their
-# current major, Go toolchain from go.mod.
+# Builds and tests every module in the workspace, then runs the hermetic
+# install/uninstall gate, on each push and pull request — the check
+# `gh codecrew task finish` gates on. Mirrors the release workflow's
+# conventions: official actions only, pinned to their current major, Go
+# toolchain from go.mod. Both steps are Makefile targets so the module
+# loop and the smoke gate are written once, for CI and the operator's
+# shell alike.
 name: CI
 
 on:
@@ -21,16 +24,18 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # The signal module is skipped for the same reason the kernel's CI
-      # runs test-portable instead of test: its suite needs CGO_ENABLED=1
-      # against the system SQLCipher library (-tags libsqlcipher) — a
-      # dependency this runner has no reason to install. It is proven
-      # locally on the operator's machine instead (task #3, plan step 6).
+      # The signal module is skipped inside `make test` for the same
+      # reason the kernel's CI runs test-portable instead of test: its
+      # suite needs CGO_ENABLED=1 against the system SQLCipher library
+      # (-tags libsqlcipher) — a dependency this runner has no reason to
+      # install. It is proven locally on the operator's machine instead
+      # (task #3, plan step 6).
       - name: Build and test every workspace module (except signal)
-        run: |
-          set -euo pipefail
-          for mod in $(go list -m -f '{{.Dir}}' | tr -d '\r'); do
-            case "$mod" in */plugins/signal) echo "=== plugins/signal: skipped (cgo/SQLCipher — local-only)"; continue;; esac
-            echo "=== ${mod#$PWD/}"
-            (cd "$mod" && go build ./... && go test ./...)
-          done
+        run: make test
+
+      # scripts/install-smoke.sh: a fixture release signed with a
+      # throwaway key, installed through install.sh's file:// seam —
+      # every checksum, allowlist, provenance and placement rule, plus
+      # the uninstall cycle. Needs the Go module cache only.
+      - name: Install and uninstall gate
+        run: make install-check
