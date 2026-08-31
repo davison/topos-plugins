@@ -68,9 +68,10 @@ stores live in the home/XDG locations the installer never names.
 
 ### What is verified, and in what order
 
-The sequence is preflight → stage → verify → place, and nothing is
-placed until everything has verified — an abort at any point leaves
-`$PREFIX` byte-unchanged.
+The sequence is preflight → stage → verify → place → converge, and
+nothing is placed until everything has verified — an abort before
+placement leaves `$PREFIX` byte-unchanged (see "What a failed install
+leaves behind" below for the two placement passes).
 
 1. **Checksums.** Every asset the release's `checksums.txt` names is
    downloaded into a staging directory and verified with
@@ -122,17 +123,37 @@ for the strongest guarantee.
 ### Updating
 
 Updating is re-running: `make install` (or `make install VERSION=<newer>`)
-into the same prefix replaces each binary — each file is renamed into
-place atomically, so a running kernel and its plugin processes are
-never truncated mid-execution — and places the newer release's
-manifest pair beside any older one. The kernel scans every manifest in
-the directory and trusts a binary the moment any validly-signed one
-names its on-disk digest, so the older manifest is inert, not a
-conflict (the installer reports how many remain; `make uninstall`
-removes them all). Restart the kernel to pick up the new fleet.
+into the same prefix converges the directory on the selected release.
+Each binary the release publishes is replaced — copies are staged
+inside the directory first and then renamed into place in one pass,
+so a running kernel and its plugin processes are never truncated
+mid-execution — and then a binary an older release placed that the new
+one no longer publishes is **retired** (removed), and the older
+release's manifest pair goes with it, so `$PREFIX/lib/topos/plugins`
+holds exactly the selected release's fleet and evidence, never a
+retired plugin kept trusted by a stale manifest. The installer names
+every file it wrote, retired or removed. Restart the kernel to pick up
+the new fleet.
+
 Re-installing the same version is safe and is the repair path: every
 asset is re-downloaded, re-verified and re-placed, ending in a
-byte-identical tree.
+byte-identical tree. Downgrading is the same operation with an older
+tag.
+
+### What a failed install leaves behind
+
+- **Before placement** — a checksum mismatch, a provenance refusal, a
+  missing manifest, no resolvable verifier, a missing asset, a rejected
+  `checksums.txt` name, a destination that is not a regular file — the
+  install aborts naming the cause and `$PREFIX` is byte-unchanged (the
+  writability probe may have created the empty plugins directory).
+- **During the copy pass** — a full disk, say — the staged copies are
+  removed and the directory is left as it was.
+- **During the rename pass** — only a signal can interrupt it: each
+  destination is then wholly old or wholly new bytes, never torn.
+  Re-run the same version to finish.
+- **Between placement and convergence** — the new fleet is in place;
+  re-running the same version performs the retirement.
 
 ### Uninstalling
 
@@ -141,8 +162,9 @@ make uninstall
 ```
 
 removes exactly what `make install` placed — the `topos-plugin-*`
-binaries and every `topos-plugins-*.provenance.{json,sig}` pair
-directly inside `$PREFIX/lib/topos/plugins` — then removes that
+binaries and the `topos-plugins-*.provenance.{json,sig}` pair (every
+pair, should an interrupted update have left an older one) directly
+inside `$PREFIX/lib/topos/plugins` — then removes that
 directory and `lib/topos` with a non-recursive `rmdir` only when they
 are left empty; anything else there survives and is reported by name.
 The kernel at `$PREFIX/bin` is the kernel repository's `make uninstall`
@@ -177,10 +199,12 @@ runs the hermetic gate `ci.yml` runs on every push: a fixture release
 signed with a throwaway key — the demo plugin as the binary, the
 verifier built at the pinned kernel revision and relinked to accept
 that key — installed through `install.sh`'s file:// test seam. It pins
-the happy path, the in-place update, a corrupted asset, a binary
+the happy path, the in-place update (including retiring a plugin the
+newer release no longer publishes), a corrupted asset, a binary
 tampered after signing with `checksums.txt` regenerated to match, an
 unsigned release, no resolvable verifier, the installed-verifier
-preference, a traversal-shaped `checksums.txt`, an unwritable prefix,
+preference, a traversal-shaped `checksums.txt`, a destination that is not a
+regular file, an unwritable prefix,
 the idempotent re-run, the uninstall data-safety cycle and the
 latest-release URL validator. No network beyond the Go module cache;
 nothing written outside its own temp tree.
