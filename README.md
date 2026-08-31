@@ -11,6 +11,12 @@ each, tied together by the repository's `go.work`
 | Plugin | Moved from | Notes |
 |---|---|---|
 | `plugins/filesystem` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/filesystem) | clean copy, module path renamed; history stays in the kernel repo |
+| `plugins/paperless` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/paperless) | clean copy, module path renamed |
+| `plugins/proton` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/proton) | clean copy, module path renamed |
+| `plugins/silverbullet` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/silverbullet) | clean copy, module path renamed |
+| `plugins/whatsapp` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/whatsapp) | clean copy, module path renamed |
+| `plugins/signal` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/signal) | clean copy, module path renamed; cgo — build locally (`CGO_ENABLED=1 go build -tags libsqlcipher`), never shipped prebuilt |
+| `plugins/gdrive` | [davison/topos-plugin-gdrive@563a21b](https://github.com/davison/topos-plugin-gdrive/tree/563a21b) | folded in, superseding that repo: Go module only (sources, testdata, README); the clean-room scaffolding stays behind |
 
 ## Trust boundary
 

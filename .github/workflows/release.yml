@@ -33,11 +33,20 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # CGO_ENABLED=0 matches the kernel's static release discipline. The
+      # signal plugin is deliberately absent: it dynamically links the
+      # system SQLCipher library, so a binary built on this runner's
+      # Ubuntu is not guaranteed to run on your distro — build it locally
+      # from plugins/signal (CGO_ENABLED=1, -tags libsqlcipher).
       - name: Build the plugin binaries
+        env:
+          CGO_ENABLED: "0"
         run: |
           mkdir -p bin
           go build -o bin/topos-plugin-demo ./cmd/topos-plugin-demo
-          (cd plugins/filesystem && go build -o ../../bin/topos-plugin-filesystem .)
+          for p in filesystem gdrive paperless proton silverbullet whatsapp; do
+            (cd "plugins/$p" && go build -o "../../bin/topos-plugin-$p" .)
+          done
 
       # The signing key is referenced exactly twice in this step: once as
       # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
@@ -64,19 +73,23 @@ jobs:
             --contract topos.v1 \
             --out-dir bin \
             bin/topos-plugin-demo \
-            bin/topos-plugin-filesystem
+            bin/topos-plugin-filesystem \
+            bin/topos-plugin-gdrive \
+            bin/topos-plugin-paperless \
+            bin/topos-plugin-proton \
+            bin/topos-plugin-silverbullet \
+            bin/topos-plugin-whatsapp
 
       - name: Hash and publish release assets
         run: |
-          (cd bin && sha256sum topos-plugin-demo topos-plugin-filesystem topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
+          (cd bin && sha256sum topos-plugin-* topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
           gh release create "$GITHUB_REF_NAME" \
-            bin/topos-plugin-demo \
-            bin/topos-plugin-filesystem \
+            bin/topos-plugin-* \
             bin/topos-plugins-*.provenance.json \
             bin/topos-plugins-*.provenance.sig \
             bin/checksums.txt \
             --title "$GITHUB_REF_NAME" \
-            --notes "topos-plugins release — demo and filesystem plugins, signed by this repository's own tag-triggered workflow. See README.md." \
+            --notes "topos-plugins release — the static plugin fleet (demo, filesystem, gdrive, paperless, proton, silverbullet, whatsapp), signed by this repository's own tag-triggered workflow. Signal is not shipped prebuilt: it dynamically links the system SQLCipher library — build it locally from plugins/signal. See README.md." \
             --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
