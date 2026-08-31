@@ -106,7 +106,8 @@ api_version = "10"
 # sees an unambiguous "no extras configured", never an empty object.
 # paperless doesn't itself declare or read any extras key today; this
 # block is left commented as the worked shape for a plugin that does —
-# see docs/plugin-contract.md's "Configuration" and "Describe" sections
+# see the kernel's docs/plugin-contract.md "Configuration" and "Describe"
+# sections (https://github.com/davison/topos/blob/main/docs/plugin-contract.md)
 # for the full contract, including the optional Describe-side field
 # declaration (key/label/required/secret/placeholder) a plugin may use to
 # drive the kernel's own add-source form.

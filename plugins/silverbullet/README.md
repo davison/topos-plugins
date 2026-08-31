@@ -66,7 +66,7 @@ plugin = "topos-plugin-silverbullet"
 display_name = "SilverBullet"
 
 # base_url: the SilverBullet instance's base URL. ${SILVERBULLET_URL} is
-# expanded from the environment, same as paperless's base_url above.
+# expanded from the environment (the ${VAR} form — never a literal host).
 # Unlike paperless-ngx, SilverBullet has no API-version negotiation, so
 # there is no api_version key for this source.
 # Validation: must be non-empty after expansion; an empty value (e.g. from

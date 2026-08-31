@@ -87,6 +87,11 @@ between the legacy plaintext-key shape and the modern Electron
 uses. Never put a key or a path to one in this project's own config —
 there is nothing to put there.
 
+Match vocabulary: `conversations` — the field an explicit
+`[webspaces.<name>.match.<instance>]` block for this plugin names. The
+fully-commented reference block is reproduced below, under
+"Configuration reference".
+
 ## Read-only, by construction and by test
 
 This plugin never writes to Signal Desktop's database. It opens
@@ -115,34 +120,14 @@ section once named, `signal-readonly-smoke.sh`, retired with the plugin
 split — the end-to-end story is the kernel's own dev loop and the
 operator's live instance now.)
 
-## Configuration (operator page)
-
-Unlike every other source in this project, Signal has no `base_url` or
-`token` — it reads a local file, not a network endpoint. The only
-required key is `path`, Signal Desktop's own config directory:
-
-```toml
-[sources.signal]
-plugin = "topos-plugin-signal"
-path = "~/.config/Signal"
-
-[sources.signal.agent]
-read = false
-handoff = false
-```
-
-Match vocabulary: `conversations`.
-
-There is no key, token, or secret to configure here at all — see Security
-& Privacy Notes, below. The fully-commented reference block is reproduced below, under "Configuration reference".
-
 ## Gotchas
 
 - A distro `sqlcipher` package older than the 3.51.3 SQLite floor fails
   loudly at startup, naming the version it found. The fix is to upgrade
   the system package, not to work around the check.
 - This plugin binary is not published as a prebuilt artifact; `make
-  signal` is the local build path (see Install Requirements, above).
+  build-signal` builds it and `make install-signal` places it (see
+  "Installing beside an installed kernel", above).
 
 ## Security & Privacy Notes
 
@@ -178,11 +163,11 @@ display_name = "Signal"
 # path: Signal Desktop's own config directory — the source of both
 # config.json (SQLCipher key resolution) and sql/db.sqlite (the message
 # database itself, opened strictly read-only). A leading "~" is expanded
-# by the plugin subprocess itself, not the kernel (kernel/config/types.go's
-# Path doc comment).
+# by the plugin subprocess itself, not the kernel (the Path field's doc
+# comment in the kernel's kernel/config/types.go).
 #
 # This source needs NO base_url, NO token, and NO environment variable at
-# all — unlike every other source in this file, the SQLCipher decryption
+# all — unlike a REST-backed source, the SQLCipher decryption
 # key is resolved entirely at runtime from files inside this directory
 # (Signal Desktop's own config.json), never stored in this project's own
 # config or environment (SRC-02).
