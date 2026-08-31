@@ -1,0 +1,30 @@
+<!--
+Provenance (09-02-PLAN.md Task 2, T-09-07):
+  Source-Project: @lucide/svelte (lucide-icons/lucide)
+  Source-File:    dist/icons/message-circle.svelte ("MessageCircle" glyph)
+  Source-Version: @lucide/svelte v1.27.0
+  Source-License: ISC
+
+Derived from Lucide's MessageCircle glyph. The stroke color is baked as
+the literal hex #94a3b8 (muted-foreground) instead of the upstream
+stroke value (Lucide's own dynamic, CSS-inherited default): an
+img-loaded SVG renders in its own opaque context and cannot inherit a
+page CSS color (09-UI-SPEC.md Fix 10, "Baked color, not the
+CSS-inherited default"). ISC is a permissive license that allows
+redistributing this modified copy. Signal's own mark is not used here
+— Signal's trademark guidelines are restrictive; this generic
+message-bubble glyph reads as "chat" instead. It is deliberately a
+different bubble shape from WhatsApp's MessageSquare glyph so the two
+chat sources stay tellable apart by icon alone. (internal/audit/
+plugin_icons_test.go mechanically forbids this file from containing
+the CSS-inherited stroke keyword itself, so it is deliberately never
+spelled out literally in this comment.)
+
+Note for future editors of this file: an XML/SVG comment must never
+contain a literal double-hyphen sequence in its body (only as the
+closing delimiter) - Chromium parses an img-loaded SVG with a strict
+XML parser, and a stray double-hyphen here silently fails the whole
+document's parse, which surfaces only as the frontend's Puzzle fallback
+with no console error naming this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>

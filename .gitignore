@@ -4,3 +4,9 @@
 # go build in a single-main-package module writes its default-output binary
 # into the module dir; never track it (task #1 review, finding 1)
 /plugins/filesystem/filesystem
+/plugins/paperless/paperless
+/plugins/silverbullet/silverbullet
+/plugins/proton/proton
+/plugins/whatsapp/whatsapp
+/plugins/signal/signal
+/plugins/gdrive/gdrive
