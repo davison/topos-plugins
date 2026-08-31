@@ -1,0 +1,30 @@
+# Builds and tests every module in the workspace on each push and pull
+# request — the check `gh codecrew task finish` gates on. Mirrors the
+# release workflow's conventions: official actions only, pinned to their
+# current major, Go toolchain from go.mod.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build and test every workspace module
+        run: |
+          set -euo pipefail
+          for mod in $(go list -m -f '{{.Dir}}' | tr -d '\r'); do
+            echo "=== ${mod#$PWD/}"
+            (cd "$mod" && go build ./... && go test ./...)
+          done
