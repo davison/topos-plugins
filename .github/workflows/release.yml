@@ -1,18 +1,22 @@
-# Publishes a tagged GitHub Release carrying this repository's demo plugin
-# binary and its ed25519-signed release manifest — the standing proof
-# (TRUST-02) that a real topos-plugins release, signed by this repository's
-# own tag-triggered workflow, verifies as first-party trusted in the topos
-# kernel with no link-time build-manifest entry.
+# Publishes a tagged GitHub Release carrying the static plugin fleet, its
+# ed25519-signed release manifest, and the provenance verifier itself —
+# the artifacts `make install` in this repository downloads, verifies
+# and places (davison/topos#6, M1-R5). Signed provenance is what lets
+# the topos kernel accept these binaries as first-party trusted with no
+# link-time build-manifest entry (davison/topos docs/plugin-trust.md).
 #
 # Triggered by pushing a tag matching v*.*.*.
 #
-# The signing step invokes the topos kernel repository's own
-# cmd/topos-provenance CLI at a PINNED commit — never a floating ref — so
-# this repository's release pipeline can never silently pick up a changed
-# manifest format or signing scheme. The signing key is referenced exactly
-# twice below (the env: key and its secrets. value), passed only through
-# the environment, and never appears in argv or in any echoed/debug
-# output — no shell trace flag is enabled anywhere in this job.
+# The fleet is built by `make build` and the verifier by `make verifier`
+# — the plugin list (STATIC_PLUGINS) and the kernel revision the
+# verifier is pinned at (TOPOS_PROVENANCE_REF) each live in exactly one
+# place, and this workflow never re-types either. The signing step runs
+# that pinned verifier, never @latest, so this pipeline can never
+# silently pick up a changed manifest format or signing scheme. The
+# signing key is referenced exactly twice below (the env: key and its
+# secrets. value), passed only through the environment, and never
+# appears in argv or in any echoed/debug output — no shell trace flag
+# is enabled anywhere in this job.
 name: Release
 
 on:
@@ -33,63 +37,51 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # CGO_ENABLED=0 matches the kernel's static release discipline. The
-      # signal plugin is deliberately absent: it dynamically links the
-      # system SQLCipher library, so a binary built on this runner's
-      # Ubuntu is not guaranteed to run on your distro — build it locally
-      # from plugins/signal (CGO_ENABLED=1, -tags libsqlcipher).
-      - name: Build the plugin binaries
-        env:
-          CGO_ENABLED: "0"
+      # CGO_ENABLED=0 (inside both targets) matches the kernel's static
+      # release discipline. The signal plugin is deliberately absent: it
+      # dynamically links the system SQLCipher library, so a binary
+      # built on this runner's Ubuntu is not guaranteed to run on your
+      # distro — build it locally with `make build-signal`. The demo
+      # plugin (cmd/topos-plugin-demo) is not shipped either: it exists
+      # to give CI and the install smoke test a fixture plugin, not to
+      # appear in an operator's source picker.
+      - name: Build the static fleet and the pinned verifier
         run: |
-          mkdir -p bin
-          go build -o bin/topos-plugin-demo ./cmd/topos-plugin-demo
-          for p in filesystem gdrive paperless proton silverbullet whatsapp; do
-            (cd "plugins/$p" && go build -o "../../bin/topos-plugin-$p" .)
-          done
+          make build
+          make verifier
 
       # The signing key is referenced exactly twice in this step: once as
       # the env: key (TOPOS_PROVENANCE_SIGNING_KEY) and once as its
       # secrets. value. It is never passed as a --flag (where it would
-      # appear in a process listing) and never echoed. This step invokes
-      # topos's own cmd/topos-provenance at a PINNED commit — see the
-      # comment above the ref below — never @latest.
+      # appear in a process listing) and never echoed. The signer is the
+      # verifier `make verifier` just built at TOPOS_PROVENANCE_REF.
       - name: Sign the release manifest
         env:
           TOPOS_PROVENANCE_SIGNING_KEY: ${{ secrets.TOPOS_PROVENANCE_SIGNING_KEY }}
         run: |
-          # Pinned to the exact topos kernel commit that introduced
-          # cmd/topos-provenance (16-01-PLAN.md). This repository's own
-          # signing pipeline is proven here, in this repository, before
-          # any topos kernel release tag exists that carries this CLI —
-          # once topos next cuts a tagged release including it, this pin
-          # should move to that tag (see 16-04-TRUST02-PROOF.md).
-          go run github.com/davison/topos/cmd/topos-provenance@e0290110026c5717d8fadebcb15f681314b9f2c1 \
-            sign \
+          ./bin/topos-provenance sign \
             --key-id topos-plugins-2026a \
             --repo davison/topos-plugins \
             --tag "$GITHUB_REF_NAME" \
             --version "$GITHUB_REF_NAME" \
             --contract topos.v1 \
             --out-dir bin \
-            bin/topos-plugin-demo \
-            bin/topos-plugin-filesystem \
-            bin/topos-plugin-gdrive \
-            bin/topos-plugin-paperless \
-            bin/topos-plugin-proton \
-            bin/topos-plugin-silverbullet \
-            bin/topos-plugin-whatsapp
+            bin/topos-plugin-*
 
+      # checksums.txt is written over exactly the set published below —
+      # it is the asset list `make install` derives its downloads from,
+      # so the two are produced from the same globs in the same step.
       - name: Hash and publish release assets
         run: |
-          (cd bin && sha256sum topos-plugin-* topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
+          (cd bin && sha256sum topos-plugin-* topos-provenance topos-plugins-*.provenance.json topos-plugins-*.provenance.sig > checksums.txt)
           gh release create "$GITHUB_REF_NAME" \
             bin/topos-plugin-* \
+            bin/topos-provenance \
             bin/topos-plugins-*.provenance.json \
             bin/topos-plugins-*.provenance.sig \
             bin/checksums.txt \
             --title "$GITHUB_REF_NAME" \
-            --notes "topos-plugins release — the static plugin fleet (demo, filesystem, gdrive, paperless, proton, silverbullet, whatsapp), signed by this repository's own tag-triggered workflow. Signal is not shipped prebuilt: it dynamically links the system SQLCipher library — build it locally from plugins/signal. See README.md." \
+            --notes "topos-plugins release — the static plugin fleet (filesystem, gdrive, paperless, proton, silverbullet, whatsapp) with its signed provenance manifest and the topos-provenance verifier. Install with \`make install\` from a checkout of this repository (README.md, \"Installing the fleet\"). Signal is not shipped prebuilt: it dynamically links the system SQLCipher library — \`make build-signal\` from the checkout." \
             --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
