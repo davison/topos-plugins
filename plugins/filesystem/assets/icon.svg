@@ -1,0 +1,25 @@
+<!--
+Provenance (internal/audit/plugin_icons_test.go's four-key contract):
+  source project: @lucide/svelte (lucide-icons/lucide)
+  source file:    dist/icons/folder.svelte ("Folder" glyph)
+  version:        @lucide/svelte v1.27.0
+  license:        ISC
+
+Derived from Lucide's Folder glyph. The stroke color is baked as the
+literal hex #94a3b8 (muted-foreground) instead of the upstream stroke
+value (Lucide's own dynamic, CSS-inherited default): an img-loaded SVG
+renders in its own opaque context and cannot inherit a page CSS color
+(mirrors plugins/mock/assets/icon.svg's identical rationale).
+ISC is a permissive license that allows redistributing this modified
+copy. (internal/audit/plugin_icons_test.go mechanically forbids this
+file from containing the CSS-inherited stroke keyword itself, so it is
+deliberately never spelled out literally in this comment either.)
+
+Note for future editors of this file: an XML/SVG comment must never
+contain a literal double-hyphen sequence in its body (only as the closing
+delimiter) - Chromium parses an img-loaded SVG with a strict XML parser,
+and a stray double-hyphen here silently fails the whole document's parse,
+which surfaces only as the frontend's Puzzle fallback with no console
+error naming this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>

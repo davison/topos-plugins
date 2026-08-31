@@ -1,12 +1,16 @@
 # topos-plugins
 
-This repository is the seed of what Phase 17 of
-[`topos`](https://github.com/davison/topos) fills with its real out-of-repo
-source plugins. Today it holds exactly one thing: a trivial, real plugin
-(`cmd/topos-plugin-demo/`) and a tag-triggered release workflow that signs its published
-binary with this repository's own ed25519 key. Nothing here is
-operator-facing yet — this repository exists to prove the signing pipeline
-that the real plugin split will build on top of, in its final home.
+This repository is where [`topos`](https://github.com/davison/topos)'s
+out-of-repo source plugins live. It began as the seed that proved the
+signing pipeline (`cmd/topos-plugin-demo/` and the tag-triggered release
+workflow that signs published binaries with this repository's own ed25519
+key); the real plugins are now arriving under `plugins/`, one Go module
+each, tied together by the repository's `go.work`
+([davison/topos#6](https://github.com/davison/topos/issues/6)).
+
+| Plugin | Moved from | Notes |
+|---|---|---|
+| `plugins/filesystem` | [davison/topos@d9a37b1](https://github.com/davison/topos/tree/d9a37b1/plugins/filesystem) | clean copy, module path renamed; history stays in the kernel repo |
 
 ## Trust boundary
 
