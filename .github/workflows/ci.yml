@@ -21,10 +21,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build and test every workspace module
+      # The signal module is skipped for the same reason the kernel's CI
+      # runs test-portable instead of test: its suite needs CGO_ENABLED=1
+      # against the system SQLCipher library (-tags libsqlcipher) — a
+      # dependency this runner has no reason to install. It is proven
+      # locally on the operator's machine instead (task #3, plan step 6).
+      - name: Build and test every workspace module (except signal)
         run: |
           set -euo pipefail
           for mod in $(go list -m -f '{{.Dir}}' | tr -d '\r'); do
+            case "$mod" in */plugins/signal) echo "=== plugins/signal: skipped (cgo/SQLCipher — local-only)"; continue;; esac
             echo "=== ${mod#$PWD/}"
             (cd "$mod" && go build ./... && go test ./...)
           done
