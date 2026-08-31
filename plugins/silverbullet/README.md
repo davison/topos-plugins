@@ -85,7 +85,7 @@ base_url = "${SILVERBULLET_URL}"
 # error shape as base_url.
 token = "${SB_AUTH_TOKEN}"
 
-# sync_interval: OPTIONAL per-source override of [sync] interval, above —
+# sync_interval: OPTIONAL per-source override of the kernel's [sync] interval —
 # lets one heavy or rate-limited source sync less often without slowing
 # every other configured source down to match.
 # Default: unset, meaning "use the global [sync] interval".
