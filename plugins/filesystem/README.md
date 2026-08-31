@@ -241,7 +241,7 @@ display_name = "Household Docs"
 # This source needs NO base_url, NO token, and NO environment variable at
 # all — a filesystem source's only "connection detail" is the path
 # itself.
-# Validation: kernel/config.Validate accepts a source declaring only
+# Validation: the kernel's config validation (https://github.com/davison/topos/blob/main/kernel/config/config.go) accepts a source declaring only
 # path, in place of base_url+token — identical to [sources.signal] and
 # [sources.whatsapp].
 path = "~/Documents/household"
