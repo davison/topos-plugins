@@ -164,7 +164,7 @@ display_name = "Signal"
 # config.json (SQLCipher key resolution) and sql/db.sqlite (the message
 # database itself, opened strictly read-only). A leading "~" is expanded
 # by the plugin subprocess itself, not the kernel (the Path field's doc
-# comment in the kernel's kernel/config/types.go).
+# comment in the kernel's config types: https://github.com/davison/topos/blob/main/kernel/config/types.go).
 #
 # This source needs NO base_url, NO token, and NO environment variable at
 # all — unlike a REST-backed source, the SQLCipher decryption
