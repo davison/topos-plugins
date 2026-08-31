@@ -1,0 +1,27 @@
+<!--
+Provenance (09-02-PLAN.md Task 2, T-09-07):
+  Source-Project: @lucide/svelte (lucide-icons/lucide)
+  Source-File:    dist/icons/mail.svelte ("Mail" glyph)
+  Source-Version: @lucide/svelte v1.27.0
+  Source-License: ISC
+
+Derived from Lucide's Mail glyph. The stroke color is baked as the
+literal hex #94a3b8 (muted-foreground) instead of the upstream stroke
+value (Lucide's own dynamic, CSS-inherited default): an img-loaded SVG
+renders in its own opaque context and cannot inherit a page CSS color
+(09-UI-SPEC.md Fix 10, "Baked color, not the CSS-inherited default").
+ISC is a permissive license that allows redistributing this modified
+copy. Proton's own mark is not used here — Proton's trademark
+guidelines are restrictive (09-UI-SPEC.md "Icon art per first-party
+plugin"). (internal/audit/plugin_icons_test.go mechanically forbids
+this file from containing the CSS-inherited stroke keyword itself, so
+it is deliberately never spelled out literally in this comment.)
+
+Note for future editors of this file: an XML/SVG comment must never
+contain a literal double-hyphen sequence in its body (only as the
+closing delimiter) - Chromium parses an img-loaded SVG with a strict
+XML parser, and a stray double-hyphen here silently fails the whole
+document's parse, which surfaces only as the frontend's Puzzle fallback
+with no console error naming this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>

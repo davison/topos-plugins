@@ -1,0 +1,33 @@
+<!--
+Provenance (09-02-PLAN.md Task 3, T-09-07/T-09-10):
+  Source-Project: @lucide/svelte (lucide-icons/lucide)
+  Source-File:    dist/icons/message-square.svelte ("MessageSquare" glyph)
+  Source-Version: @lucide/svelte v1.27.0
+  Source-License: ISC
+
+Derived from Lucide's MessageSquare glyph. The stroke color is baked as
+the literal hex #94a3b8 (muted-foreground) instead of the upstream
+stroke value (Lucide's own dynamic, CSS-inherited default): an
+img-loaded SVG renders in its own opaque context and cannot inherit a
+page CSS color (09-UI-SPEC.md Fix 10, "Baked color, not the
+CSS-inherited default"). ISC is a permissive license that allows
+redistributing this modified copy. (internal/audit/
+plugin_icons_test.go mechanically forbids this file from containing
+the CSS-inherited stroke keyword itself, so it is deliberately never
+spelled out literally in this comment.)
+
+This is deliberately NOT the topos app icon and NOT any WhatsApp/Meta
+mark — the de-branding ask (09-UI-SPEC.md Fix 10) is satisfied by a
+neutral message-bubble glyph, not by lending topos's own identity to a
+plugin chip. It is a different bubble shape from Signal's
+MessageCircle glyph so the two chat sources stay tellable apart by icon
+alone.
+
+Note for future editors of this file: an XML/SVG comment must never
+contain a literal double-hyphen sequence in its body (only as the
+closing delimiter) - Chromium parses an img-loaded SVG with a strict
+XML parser, and a stray double-hyphen here silently fails the whole
+document's parse, which surfaces only as the frontend's Puzzle fallback
+with no console error naming this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg>
