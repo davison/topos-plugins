@@ -171,7 +171,7 @@ display_name = "Signal"
 # key is resolved entirely at runtime from files inside this directory
 # (Signal Desktop's own config.json), never stored in this project's own
 # config or environment (SRC-02).
-# Validation: kernel/config.Validate accepts a source declaring only
+# Validation: the kernel's config validation (https://github.com/davison/topos/blob/main/kernel/config/config.go) accepts a source declaring only
 # path, in place of base_url+token; a source declaring none of the three
 # fails config load naming both accepted shapes.
 # Default Signal Desktop location on Linux: "~/.config/Signal".

@@ -95,7 +95,7 @@ display_name = "WhatsApp"
 # (or the kernel checkout's `make dev` loop) after linking succeeds; the
 # linked session survives a
 # kernel restart with no second QR scan.
-# Validation: kernel/config.Validate accepts a source declaring only
+# Validation: the kernel's config validation (https://github.com/davison/topos/blob/main/kernel/config/config.go) accepts a source declaring only
 # path, in place of base_url+token — identical to [sources.signal].
 path = "~/.local/share/topos/whatsapp"
 
