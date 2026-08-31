@@ -1,0 +1,24 @@
+# The ONE place this repository names the davison/topos kernel revision
+# its provenance verifier (cmd/topos-provenance) is built at — read by
+# the Makefile (`make verifier`, which the release workflow's signing
+# step and `make install-check` both build through). A pinned commit,
+# never a floating ref, so the release pipeline can never silently pick
+# up a changed manifest format or signing scheme. Move it to a kernel
+# release TAG once one ships cmd/topos-provenance (v1.3.0, at the close
+# of davison/topos#6).
+#
+# The revision must be one whose embedded accepted-key set includes this
+# repository's signing key (topos-plugins-2026a, embedded by davison/
+# topos@40c1ebd, 16-04): signing never needs the public key, but a
+# verifier built before it was embedded rejects every real release —
+# which is exactly what the previous pin (e0290110, the commit that
+# introduced the CLI) did (davison/topos-plugins#8, the rehearsal).
+#
+# Known looseness: the kernel's go.mod at this revision does not require
+# its own sdk companion module (the kernel workspace resolves it), so
+# `go install` resolves github.com/davison/topos/sdk to its latest
+# published revision at build time. The verifier's behaviour lives in
+# kernel/pluginhost, which IS pinned; the sdk only supplies plugin types.
+#
+# Comment lines and blank lines are ignored.
+8b0ed49dda8c18e283303c6517876a93d7156cf8
