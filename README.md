@@ -265,6 +265,9 @@ environment), and publishes a GitHub Release carrying:
 - `topos-plugin-<name>` — one binary per static plugin (filesystem,
   gdrive, paperless, proton, silverbullet, whatsapp)
 - `topos-plugins-<tag>.provenance.json` — the signed release manifest
+  (each entry records the fleet's contract generation, `topos.v2` — the
+  value every binary declares at Describe; recorded metadata, since the
+  kernel's launch gate reads the runtime declaration)
 - `topos-plugins-<tag>.provenance.sig` — its ed25519 signature
 - `topos-provenance` — the verifier, for machines with no other
 - `checksums.txt` — SHA-256 of every asset above
