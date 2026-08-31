@@ -14,7 +14,7 @@ could not answer.
 For the start-to-finish path — Google Cloud project through a syncing
 source, with the publishing-status/verification-status distinction and
 the seven-day Testing-status expiry warning explained in full — see
-[`docs/setup.md`](docs/setup.md).
+[`docs/setup.md`](https://github.com/davison/topos-plugin-gdrive/blob/563a21b/docs/setup.md).
 
 The Build/Install/One-time authorization sections below are the terse
 reference version of the same steps.
