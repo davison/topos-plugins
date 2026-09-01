@@ -40,6 +40,21 @@ import (
 //     present across all five tables, and readOwnAci/readConversations/
 //     readMessages (covering readAttachments/readReactions) all
 //     returned non-zero rows against the real database.
+//   - 1780: verified 2026-09-01 (davison/topos-plugins#18, the M1 live
+//     UAT remedy), against Arch package signal-desktop 8.25.0-1 — a
+//     release boundary crossed since the 1760 verification on 8.22.0-1,
+//     and the first advance found by guardSchemaVersion firing on the
+//     operator's live instance rather than by a scheduled re-check,
+//     which is the trigger this comment prescribes. Signal Desktop's two
+//     migrations in between are outside the read set by inspection of
+//     its ts/sql/migrations: 1770 (add-blocked-at) rewrites the
+//     blocked-number/serviceId/group rows of `items` to carry blockedAt,
+//     and this plugin reads `items` only for id = 'uuid_id'; 1780
+//     (fts-reindex) rebuilds messages_fts, touching no table read here.
+//     Verified via the same unchanged tooling against the real database
+//     at 1780: every read-set column present across all five tables;
+//     readConversations 210 rows; readMessages 279 records across 5
+//     probed conversations, 29 with attachments, 22 with reactions.
 //
 // Raising this constant is a deliberate act, performed only after
 // re-running that same introspection (schema_readset.go's declared read
@@ -49,7 +64,7 @@ import (
 // app version number, since app version and schema version do not move
 // in lockstep. The trigger for re-verification is guardSchemaVersion
 // firing, not a Signal Desktop upgrade notification.
-const highestSupportedSchemaVersion = 1760
+const highestSupportedSchemaVersion = 1780
 
 // guardSchemaVersion reads PRAGMA user_version on db and fails loudly,
 // naming both the version found and the highest supported, if it exceeds
