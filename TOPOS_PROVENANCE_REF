@@ -3,9 +3,10 @@
 # the Makefile (`make verifier`, which the release workflow's signing
 # step and `make install-check` both build through). A pinned commit,
 # never a floating ref, so the release pipeline can never silently pick
-# up a changed manifest format or signing scheme. Move it to a kernel
-# release TAG once one ships cmd/topos-provenance (v1.3.0, at the close
-# of davison/topos#6).
+# up a changed manifest format or signing scheme. At a kernel release
+# tag since v1.3.0 shipped cmd/topos-provenance (davison/topos#6; the
+# tag is commit 7c07400, so the key-set requirement below is checkable
+# against it).
 #
 # The revision must be one whose embedded accepted-key set includes this
 # repository's signing key (topos-plugins-2026a, embedded by davison/
@@ -21,4 +22,4 @@
 # kernel/pluginhost, which IS pinned; the sdk only supplies plugin types.
 #
 # Comment lines and blank lines are ignored.
-8b0ed49dda8c18e283303c6517876a93d7156cf8
+v1.3.0
