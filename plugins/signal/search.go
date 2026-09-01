@@ -19,7 +19,7 @@ import (
 // of the first matching message. Nothing is written; the schema guard
 // applies exactly as it does to Match.
 func (p *SourcePlugin) Search(_ context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "conversations"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())

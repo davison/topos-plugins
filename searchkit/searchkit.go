@@ -24,15 +24,30 @@ import (
 // rule; docs/plugin-contract.md "Search").
 var ErrNoMembership = status.Error(codes.InvalidArgument, "search: match_fields is empty — a search without membership input would be the whole source, which is refused")
 
-// RequireMembership returns ErrNoMembership unless req carries at least one
-// match field with at least one value.
-func RequireMembership(req *toposv1.SearchRequest) error {
-	for _, v := range req.GetMatchFields() {
-		if len(v.GetValues()) > 0 {
+// RequireMembership returns an InvalidArgument error unless req carries
+// at least one value under one of the plugin's OWN declared match fields
+// (its Describe match_vocabulary). A map populated only under foreign
+// keys is refused exactly like an empty one: the kernel sends each
+// instance the fields its webspace configured, so a map without this
+// plugin's fields carries no membership for it, and "no membership" must
+// never become "the whole source" (davison/topos#50; docs/plugin-
+// contract.md "Search"). With no fields named, any populated field counts.
+func RequireMembership(req *toposv1.SearchRequest, fields ...string) error {
+	mf := req.GetMatchFields()
+	if len(fields) == 0 {
+		for _, v := range mf {
+			if len(v.GetValues()) > 0 {
+				return nil
+			}
+		}
+		return ErrNoMembership
+	}
+	for _, f := range fields {
+		if len(mf[f].GetValues()) > 0 {
 			return nil
 		}
 	}
-	return ErrNoMembership
+	return status.Errorf(codes.InvalidArgument, "search: match_fields carries no value under this plugin's fields %s — a search without membership input would be the whole source, which is refused", strings.Join(fields, "/"))
 }
 
 // Terms splits a query into lowercase terms of two or more characters —

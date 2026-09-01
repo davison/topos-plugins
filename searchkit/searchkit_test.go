@@ -72,3 +72,17 @@ func TestLimit(t *testing.T) {
 		t.Errorf("nil in, empty slice out: %v %v", got, trunc)
 	}
 }
+
+func TestRequireMembership_OwnFieldsOnly(t *testing.T) {
+	foreign := &toposv1.SearchRequest{MatchFields: map[string]*toposv1.StringList{"tags": {Values: []string{"house"}}}}
+	if err := RequireMembership(foreign, "folders"); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("foreign-only map: got %v, want InvalidArgument", err)
+	}
+	if err := RequireMembership(foreign); err != nil {
+		t.Fatalf("unscoped guard should accept any populated field: %v", err)
+	}
+	own := &toposv1.SearchRequest{MatchFields: map[string]*toposv1.StringList{"tags": {Values: []string{}}, "pages": {Values: []string{"Home"}}}}
+	if err := RequireMembership(own, "tags", "pages"); err != nil {
+		t.Fatalf("one populated own field suffices: %v", err)
+	}
+}

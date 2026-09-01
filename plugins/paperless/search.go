@@ -16,7 +16,7 @@ import (
 // against title, tags and the OCR content paperless returns, so the
 // answer is the same AND every other plugin gives.
 func (p *SourcePlugin) Search(ctx context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "tags"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())

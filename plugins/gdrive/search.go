@@ -19,7 +19,7 @@ import (
 // member files. Drive returns no snippets, so a hit carries none;
 // matched_in is TITLE when the name alone carries every term, else BODY.
 func (p *SourcePlugin) Search(ctx context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "folders"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())

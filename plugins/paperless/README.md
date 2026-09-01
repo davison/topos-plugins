@@ -35,10 +35,14 @@ token. The fully-commented reference block is reproduced below, under "Configura
 The plugin implements the kernel's content search (`Search`, M2-R2):
 the member documents (the `tags` membership, exactly as `Match` applies
 it) are searched through paperless-ngx's own `?query=` full-text index,
-so OCR text is reachable; every query and required term is passed to
-that index. paperless returns no snippet, so a hit reports whether the
-title carried the terms or the (unfetched) content did. An empty
-membership is refused rather than searched globally.
+so OCR text is reachable. The query goes to that index; the documents it
+returns are then checked locally for every required term and every query
+term (paperless's index tokenises differently from the kernel), and a
+hit's snippet is cut from the document's returned `content` around the
+first matching term. `matched_in` says whether the title carried the
+terms or the content did. An empty membership — or one carrying only
+fields this plugin never declared — is refused rather than searched
+globally.
 
 ## Gotchas
 

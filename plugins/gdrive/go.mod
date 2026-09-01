@@ -3,6 +3,7 @@ module github.com/davison/topos-plugins/plugins/gdrive
 go 1.25.0
 
 require (
+	github.com/davison/topos-plugins v0.0.0-00010101000000-000000000000
 	github.com/davison/topos/sdk v0.0.0-20260901181323-b3e18d5b6a06
 	github.com/googleapis/gax-go/v2 v2.23.0
 	github.com/hashicorp/go-plugin v1.8.0
