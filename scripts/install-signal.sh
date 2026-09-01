@@ -73,12 +73,27 @@ refuse_trusted_destination() {
   esac
 }
 
+# refuse_root: the external plugin directory is the RUNNING USER's data
+# directory, so a root-run install resolves root's — a place no
+# operator's kernel looks — and would report success (topos-plugins#20:
+# the kernel and fleet installs need sudo for a /usr/local PREFIX, so
+# running this one the same way is the natural next move). Refused by
+# name unless the operator names the instance's directory explicitly.
+# INSTALL_SIGNAL_EUID is the smoke suite's hook; real runs read EUID.
+refuse_root() {
+  local euid="${INSTALL_SIGNAL_EUID:-${EUID:-$(id -u)}}"
+  if [ "$euid" = "0" ] && [ -z "${TOPOS_EXTERNAL_PLUGINS_DIR:-}" ]; then
+    fail "refusing to run as root: the external plugin directory is the RUNNING USER's data directory (\$XDG_DATA_HOME/topos/plugins-external), and root's is never an installed instance's — under sudo this would place the binary where no kernel looks, and report success. Run 'make install-signal' / 'make uninstall-signal' WITHOUT sudo (the kernel's and the fleet's 'make install' need it for a /usr/local PREFIX; this step must not have it), or name the instance's directory explicitly with TOPOS_EXTERNAL_PLUGINS_DIR=<dir>."
+  fi
+}
+
 main() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILT_BINARY="$REPO_ROOT/bin/$BINARY_NAME"
 
+refuse_root
 RESOLVED="$(resolve_external_dir)"
 DEST_DIR="${RESOLVED%|*}"
 DEST_SOURCE="${RESOLVED##*|}"
