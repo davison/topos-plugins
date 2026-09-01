@@ -30,6 +30,16 @@ API version range. `base_url` and `token` use the environment-expansion
 form exactly as the reference block below does — never a literal host or
 token. The fully-commented reference block is reproduced below, under "Configuration reference".
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+the member documents (the `tags` membership, exactly as `Match` applies
+it) are searched through paperless-ngx's own `?query=` full-text index,
+so OCR text is reachable; every query and required term is passed to
+that index. paperless returns no snippet, so a hit reports whether the
+title carried the terms or the (unfetched) content did. An empty
+membership is refused rather than searched globally.
+
 ## Gotchas
 
 - An incompatible `api_version` is not validated at config load — it

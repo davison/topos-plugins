@@ -144,6 +144,7 @@ func (p *SourcePlugin) Describe(_ context.Context, _ *toposv1.DescribeRequest) (
 		SourceType:      sourceType,
 		DisplayName:     displayName,
 		ContractVersion: contractVersion,
+		SearchesContent: true,
 		MatchVocabulary: matchVocabulary,
 		Icon:            iconSVG,
 		IconMime:        iconMIME,

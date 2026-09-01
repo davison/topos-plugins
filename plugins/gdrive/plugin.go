@@ -298,6 +298,7 @@ func (p *SourcePlugin) Describe(_ context.Context, _ *toposv1.DescribeRequest) (
 		SourceType:      sourceType,
 		DisplayName:     displayName,
 		ContractVersion: contractVersion,
+		SearchesContent: true,
 		// Copied (not returned by reference) so that no caller can
 		// mutate the shared package-level backing array and corrupt
 		// every subsequent Describe response for the process's

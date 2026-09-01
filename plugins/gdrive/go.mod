@@ -3,7 +3,7 @@ module github.com/davison/topos-plugins/plugins/gdrive
 go 1.25.0
 
 require (
-	github.com/davison/topos/sdk v0.0.0-20260816004838-9f69063e51aa
+	github.com/davison/topos/sdk v0.0.0-20260901181323-b3e18d5b6a06
 	github.com/googleapis/gax-go/v2 v2.23.0
 	github.com/hashicorp/go-plugin v1.8.0
 	golang.org/x/oauth2 v0.36.0
@@ -26,8 +26,8 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
@@ -41,3 +41,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260807164820-c8921c73eeea // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace github.com/davison/topos-plugins => ../..

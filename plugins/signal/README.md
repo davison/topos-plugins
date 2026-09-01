@@ -153,6 +153,16 @@ file's own format. It prints the diff and never commits: review it, run
 `make test-signal`, and land it through a task like any other change.
 Below the ceiling there is nothing to accept and it says so.
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+within the member conversations (the `conversations` membership, exactly
+as `Match` applies it) it reads message bodies through the same read-only
+path `Match` and `Fetch` use — no writes, no FTS table of its own — and
+returns the day digests whose messages carried every query and required
+term, with the first matching body as the snippet. An empty membership is
+refused rather than searched globally.
+
 ## Gotchas
 
 - A distro `sqlcipher` package older than the 3.51.3 SQLite floor fails

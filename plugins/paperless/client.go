@@ -221,6 +221,17 @@ func (c *Client) ResolveTagIDs(ctx context.Context, keywords []string) ([]int, e
 // to completion. Returns an empty slice, not an error, when tagIDs is
 // empty.
 func (c *Client) ListDocuments(ctx context.Context, tagIDs []int) ([]Document, error) {
+	return c.listDocuments(ctx, tagIDs, "")
+}
+
+// SearchDocuments is ListDocuments with paperless-ngx's own full-text
+// `query` parameter (M2-R2): the same tag filter, so membership never
+// widens, and the server's index doing the text work.
+func (c *Client) SearchDocuments(ctx context.Context, tagIDs []int, query string) ([]Document, error) {
+	return c.listDocuments(ctx, tagIDs, query)
+}
+
+func (c *Client) listDocuments(ctx context.Context, tagIDs []int, query string) ([]Document, error) {
 	if len(tagIDs) == 0 {
 		return nil, nil
 	}
@@ -234,6 +245,9 @@ func (c *Client) ListDocuments(ctx context.Context, tagIDs []int) ([]Document, e
 	q.Set("tags__id__in", strings.Join(idStrs, ","))
 	q.Set("page_size", "100")
 	q.Set("ordering", "-created")
+	if query != "" {
+		q.Set("query", query)
+	}
 
 	var docs []Document
 	path := "/api/documents/"

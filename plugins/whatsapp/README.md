@@ -39,6 +39,17 @@ the kernel checkout's `make dev` loop); the linked session survives
 restarts with no second scan.
 The fully-commented reference block is reproduced below, under "Configuration reference".
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+within the member chats (the `groups` / `contacts` membership, exactly as
+`Match` applies it) it reads captured message bodies from this plugin's
+own message store and returns the day digests whose messages carried
+every query and required term, with the first matching body as the
+snippet. Only messages captured since linking are searchable, as with
+everything else here. An empty membership is refused rather than
+searched globally.
+
 ## Gotchas
 
 - `path` holds two plugin-owned databases — the linked-device session

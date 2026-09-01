@@ -187,6 +187,17 @@ override) is therefore the actual, honest freshness bound on a network
 mount — not a documented caveat to work around, but the correct
 mechanism given what the underlying protocols can guarantee.
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2): the
+webspace's `folders` membership is applied first — exactly as `Match`
+applies it — then every query term (and every required term) must occur
+in a member file's name, path labels, or the first 512 KiB of its text.
+Only files that sniff as text are read; binaries match by name alone. A
+hit carries a short snippet around the first matching term and says
+whether it matched in the title, the body, or a label. An empty
+membership is refused rather than searched globally.
+
 ## Gotchas
 
 - A per-sync tree is capped at 25,000 items; exceeding it fails the sync

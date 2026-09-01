@@ -35,6 +35,17 @@ back into Proton's web client are built from. `username` and `token` use
 the environment-expansion form exactly as the reference block below does —
 never a literal host, username, or token. The fully-commented reference block is reproduced below, under "Configuration reference".
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+within the member mailboxes (the `folders` membership, exactly as `Match`
+applies it) it issues IMAP `SEARCH TEXT` for every query and required
+term — the Bridge searches headers and bodies server-side — and fetches
+only the matching envelopes, read-only (`EXAMINE`), never a body. Hits
+therefore carry no snippet; `matched_in` is the subject when it alone
+holds every term, otherwise the body. An empty membership is refused
+rather than searched globally.
+
 ## Gotchas
 
 - Bridge binds loopback only, so reaching it from another machine needs a

@@ -105,6 +105,7 @@ func (p *SourcePlugin) Describe(_ context.Context, _ *toposv1.DescribeRequest) (
 				Placeholder: "**/node_modules/**",
 			},
 		},
+		SearchesContent: true, // the optional Search RPC (M2-R2), search.go
 	}, nil
 }
 

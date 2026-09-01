@@ -22,6 +22,17 @@ signing pipeline. It is no longer shipped in releases; it stays as the
 fixture binary the install smoke test signs and installs, and as the
 smallest complete plugin in the tree.
 
+## Content search
+
+Every plugin here implements the kernel's optional content search
+(`Search`, M2-R2 — davison/topos#50): the webspace's membership is applied
+first, exactly as `Match` applies it, then the query and required terms
+are searched where the content lives — paperless-ngx's and Drive's own
+indexes, IMAP `SEARCH TEXT`, the local Signal/WhatsApp stores, file and
+page text. `searchkit/` holds the shared term, snippet and limit
+helpers; each plugin's README has a "Content search" section on what is
+and isn't reachable (Proton and the indexed services return no snippet).
+
 ## Installing the fleet
 
 An installed topos instance is two independent installs into one
