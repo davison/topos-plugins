@@ -37,6 +37,25 @@ fail() {
 
 GUARD_FILE_DEFAULT="plugins/signal/schemaguard.go"
 
+# run_live_test: the opt-in live read-set test, verbose, as one command.
+# SIGNAL_SCHEMA_LIVE_CMD is the smoke suite's seam — a command whose
+# output and exit status stand in for the real test — so every refusal
+# path below is provable without a database. Real runs never set it.
+run_live_test() {
+  if [ -n "${SIGNAL_SCHEMA_LIVE_CMD:-}" ]; then
+    bash -c "$SIGNAL_SCHEMA_LIVE_CMD"
+  else
+    WEBSPACES_SIGNAL_LIVE_SCHEMA=1 CGO_ENABLED=1 go test -tags libsqlcipher -run TestLiveSchemaReadSet -v ./plugins/signal/
+  fi
+}
+
+# upstream_migration_names: the file names under Signal Desktop's
+# ts/sql/migrations, from GitHub. SIGNAL_SCHEMA_GH is the smoke suite's
+# seam for the gh binary (e.g. `false` to simulate offline).
+upstream_migration_names() {
+  "${SIGNAL_SCHEMA_GH:-gh}" api repos/signalapp/Signal-Desktop/contents/ts/sql/migrations --jq '.[].name'
+}
+
 # current_ceiling <file>: the constant's value, or nothing.
 current_ceiling() {
   sed -nE 's/^const highestSupportedSchemaVersion = ([0-9]+)$/\1/p' "$1"
@@ -65,7 +84,7 @@ migrations_between() {
     printf '%s' "$SIGNAL_SCHEMA_MIGRATIONS"
     return
   fi
-  if names="$(gh api repos/signalapp/Signal-Desktop/contents/ts/sql/migrations --jq '.[].name' 2>/dev/null)"; then
+  if names="$(upstream_migration_names 2>/dev/null)"; then
     printf '%s\n' "$names" | awk -v o="$old" -v n="$new" -F- '($1+0) > o && ($1+0) <= n' | sort | paste -sd, -
     return
   fi
@@ -124,18 +143,20 @@ main() {
   local old; old="$(current_ceiling "$file")"
   [ -n "$old" ] || fail "no 'const highestSupportedSchemaVersion = N' line in $file"
 
-  echo "signal-schema-accept: ceiling is $old; running the live read-set test against ~/.config/Signal (read-only)"
+  echo "signal-schema-accept: ceiling is $old; running the live read-set test against ~/.config/Signal (read-only)" >&2
   local out rc=0
-  out="$(WEBSPACES_SIGNAL_LIVE_SCHEMA=1 CGO_ENABLED=1 go test -tags libsqlcipher -run TestLiveSchemaReadSet -v ./plugins/signal/ 2>&1)" || rc=$?
+  out="$(run_live_test 2>&1)" || rc=$?
   if [ "$rc" -ne 0 ]; then
     printf '%s\n' "$out" | tail -40 >&2
     fail "the live read-set test did not pass — NOTHING is accepted. The plugin's read set is broken at the database's version; fix the plugin first (plugins/signal/schema_readset.go, plugin.go), then rerun."
   fi
   printf '%s\n' "$out" | grep -q -- "--- PASS: TestLiveSchemaReadSet" \
     || { printf '%s\n' "$out" | tail -10 >&2; fail "the live test did not run (skipped?) — it needs a cgo toolchain, the system sqlcipher package, and a Signal Desktop database at ~/.config/Signal"; }
-  local summary; summary="$(printf '%s\n' "$out" | grep -o 'LIVE_SCHEMA_SUMMARY .*' | head -1)"
+  # `|| true`: under pipefail an absent summary would otherwise abort the
+  # shell silently instead of reaching the refusal below.
+  local summary; summary="$(printf '%s\n' "$out" | grep -o 'LIVE_SCHEMA_SUMMARY .*' | head -1 || true)"
   [ -n "$summary" ] || fail "no LIVE_SCHEMA_SUMMARY line in the live test's output"
-  local new; new="$(sed -nE 's/.*version=([0-9]+).*/\1/p' <<<"$summary")"
+  local new; new="$(sed -nE 's/.*version=([0-9]+).*/\1/p' <<<"$summary" || true)"
   [ -n "$new" ] || fail "no version in the summary line: $summary"
 
   if nothing_to_accept "$old" "$new"; then
