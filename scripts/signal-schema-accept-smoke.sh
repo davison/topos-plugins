@@ -63,4 +63,57 @@ printf '%s' "$OUT" | grep -q "^+const highestSupportedSchemaVersion = $NEW" || f
 cmp -s "$TMP/dry.go" plugins/signal/schemaguard.go || fail "dry run modified the file"
 echo "==> Case PASS: --dry-run writes nothing"
 
+# ---------------------------------------------------------------------
+# main, end to end, through the two seams: every refusal leaves the
+# fixture byte-for-byte unchanged; only a passed test with a summary
+# above the ceiling (and a migrations list) writes.
+# ---------------------------------------------------------------------
+export SIGNAL_SCHEMA_GUARD_FILE="$TMP/main.go"
+PASS_LINE='--- PASS: TestLiveSchemaReadSet (0.01s)'
+SUMMARY_HI="LIVE_SCHEMA_SUMMARY version=$NEW conversations=210 probed=5 messages=279 attachments=29 reactions=22"
+SUMMARY_EQ="LIVE_SCHEMA_SUMMARY version=$OLD conversations=210 probed=5 messages=279 attachments=29 reactions=22"
+
+# refuse_case <name> <live-cmd> <expected-substring> [env=val ...]: main must
+# exit non-zero, say why, and leave the fixture untouched.
+refuse_case() {
+  local name="$1" live="$2" expect="$3"; shift 3
+  cp plugins/signal/schemaguard.go "$SIGNAL_SCHEMA_GUARD_FILE"
+  local rc=0 out
+  out="$(env "$@" SIGNAL_SCHEMA_LIVE_CMD="$live" bash -c 'source ./scripts/signal-schema-accept.sh; main' 2>&1)" || rc=$?
+  [ "$rc" -ne 0 ] || fail "$name: main did not refuse"
+  printf '%s' "$out" | grep -q -- "$expect" || fail "$name: refusal did not say why (expected '$expect'):
+$out"
+  cmp -s "$SIGNAL_SCHEMA_GUARD_FILE" plugins/signal/schemaguard.go || fail "$name: the guard file was modified despite the refusal"
+  echo "==> Case PASS: refuses when $name"
+}
+echo "==> Case: main refuses without writing"
+refuse_case "the live test fails"            "printf '%s\n' '--- FAIL: TestLiveSchemaReadSet (0.01s)'; exit 1"  "did not pass — NOTHING is accepted"
+refuse_case "the live test is skipped"       "printf '%s\n' '--- SKIP: TestLiveSchemaReadSet (0.00s)'; exit 0"  "did not run"
+refuse_case "the summary line is missing"    "printf '%s\n' '$PASS_LINE'; exit 0"                                "no LIVE_SCHEMA_SUMMARY"
+refuse_case "the summary has no version"     "printf '%s\n' '$PASS_LINE' 'LIVE_SCHEMA_SUMMARY conversations=1'; exit 0" "no version in the summary"
+refuse_case "upstream is offline and no override is set" "printf '%s\n' '$PASS_LINE' '$SUMMARY_HI'; exit 0" "could not list Signal Desktop's migrations" SIGNAL_SCHEMA_GH=false SIGNAL_SCHEMA_ACCEPT_OFFLINE=
+echo "==> Case PASS: main refuses without writing"
+
+echo "==> Case: main is a no-op at the ceiling"
+cp plugins/signal/schemaguard.go "$SIGNAL_SCHEMA_GUARD_FILE"
+OUT="$(SIGNAL_SCHEMA_LIVE_CMD="printf '%s\n' '$PASS_LINE' '$SUMMARY_EQ'; exit 0" SIGNAL_SCHEMA_GH=false bash -c 'source ./scripts/signal-schema-accept.sh; main' 2>&1)" || fail "no-op run exited non-zero: $OUT"
+printf '%s' "$OUT" | grep -q "nothing to accept" || fail "no-op run did not say so: $OUT"
+cmp -s "$SIGNAL_SCHEMA_GUARD_FILE" plugins/signal/schemaguard.go || fail "no-op run modified the guard file"
+echo "==> Case PASS: main is a no-op at the ceiling"
+
+echo "==> Case: main writes only when the test passed above the ceiling"
+cp plugins/signal/schemaguard.go "$SIGNAL_SCHEMA_GUARD_FILE"
+OUT="$(SIGNAL_SCHEMA_LIVE_CMD="printf '%s\n' '$PASS_LINE' '$SUMMARY_HI'; exit 0" SIGNAL_SCHEMA_MIGRATIONS="1790-a.std.ts,1800-b.std.ts" bash -c 'source ./scripts/signal-schema-accept.sh; main' 2>&1)" || fail "accepting run exited non-zero: $OUT"
+[ "$(current_ceiling "$SIGNAL_SCHEMA_GUARD_FILE")" = "$NEW" ] || fail "accepting run did not raise the constant"
+grep -q "^//   - $NEW: verified" "$SIGNAL_SCHEMA_GUARD_FILE" || fail "accepting run wrote no provenance bullet"
+printf '%s' "$OUT" | grep -q "now accepts up to $NEW" || fail "accepting run did not report: $OUT"
+echo "==> Case PASS: main writes only when the test passed above the ceiling"
+
+echo "==> Case: the offline placeholder is explicit when overridden"
+cp plugins/signal/schemaguard.go "$SIGNAL_SCHEMA_GUARD_FILE"
+SIGNAL_SCHEMA_LIVE_CMD="printf '%s\n' '$PASS_LINE' '$SUMMARY_HI'; exit 0" SIGNAL_SCHEMA_GH=false SIGNAL_SCHEMA_ACCEPT_OFFLINE=1 bash -c 'source ./scripts/signal-schema-accept.sh; main' >/dev/null 2>&1 || fail "offline override run failed"
+grep -q "MIGRATIONS NOT LISTED (offline run" "$SIGNAL_SCHEMA_GUARD_FILE" || fail "offline placeholder not written"
+echo "==> Case PASS: the offline placeholder is explicit when overridden"
+unset SIGNAL_SCHEMA_GUARD_FILE
+
 echo "signal-schema-accept-smoke: all cases passed"
