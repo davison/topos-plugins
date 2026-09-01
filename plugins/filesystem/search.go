@@ -24,7 +24,7 @@ const searchReadCap = 512 * 1024
 // name, labels and — for a text-like file — the head of its contents.
 // Read-only, bounded, snippets never a body.
 func (p *SourcePlugin) Search(ctx context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "folders"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())
@@ -37,14 +37,14 @@ func (p *SourcePlugin) Search(ctx context.Context, req *toposv1.SearchRequest) (
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "filesystem: %v", err)
 	}
-	folders, hasFolders := req.GetMatchFields()["folders"]
+	folders := req.GetMatchFields()["folders"].GetValues() // non-empty: RequireMembership above
 	var hits []*toposv1.SearchHit
 	for _, r := range results {
 		if ctx.Err() != nil {
 			return nil, status.Errorf(codes.DeadlineExceeded, "filesystem: search cancelled: %v", ctx.Err())
 		}
 		it := p.toItem(r.sourceID, r.info)
-		if hasFolders && !labelMatchesAny(it.GetLabels(), folders.GetValues()) {
+		if !labelMatchesAny(it.GetLabels(), folders) {
 			continue // not a member — never returned, whatever the query
 		}
 		body := readTextHead(filepath.Join(p.root, filepath.FromSlash(r.sourceID)))

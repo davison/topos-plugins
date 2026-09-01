@@ -79,4 +79,11 @@ func TestSearch_RefusesEmptyMembership(t *testing.T) {
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("empty match_fields: got %v, want InvalidArgument", err)
 	}
+
+	// A map populated only under a field this plugin never declared is no
+	// membership for it either — refused, never widened to the whole
+	// source (davison/topos#50; tp#26 review round 1).
+	if _, err := p.Search(t.Context(), &toposv1.SearchRequest{Query: "dune", MatchFields: map[string]*toposv1.StringList{"conversations": {Values: []string{"house"}}}}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("foreign-only match_fields: got %v, want InvalidArgument", err)
+	}
 }

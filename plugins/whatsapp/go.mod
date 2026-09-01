@@ -54,6 +54,7 @@ require go.mau.fi/whatsmeow v0.0.0-20260806224404-e277b766ab33
 require rsc.io/qr v0.2.0
 
 require (
+	github.com/davison/topos-plugins v0.0.0-00010101000000-000000000000
 	github.com/davison/topos/sdk v0.0.0-20260901181323-b3e18d5b6a06
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/mdp/qrterminal/v3 v3.2.1
@@ -65,7 +66,6 @@ require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/beeper/argo-go v1.1.2 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -79,7 +79,6 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/petermattis/goid v0.0.0-20260713124913-97594f28f5ca // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.27 // indirect

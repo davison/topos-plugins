@@ -18,7 +18,7 @@ import (
 // page names), then the query and required terms against each member
 // page's name, tags and body.
 func (p *SourcePlugin) Search(ctx context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "tags", "pages"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())

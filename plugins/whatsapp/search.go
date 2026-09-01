@@ -16,7 +16,7 @@ import (
 // each message body within those chats. The hit is the chat-day digest
 // the stream shows, with a bounded snippet of the first matching message.
 func (p *SourcePlugin) Search(_ context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "groups", "contacts"); err != nil {
 		return nil, err
 	}
 	state := p.healthState()

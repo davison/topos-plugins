@@ -31,7 +31,9 @@ are searched where the content lives — paperless-ngx's and Drive's own
 indexes, IMAP `SEARCH TEXT`, the local Signal/WhatsApp stores, file and
 page text. `searchkit/` holds the shared term, snippet and limit
 helpers; each plugin's README has a "Content search" section on what is
-and isn't reachable (Proton and the indexed services return no snippet).
+and isn't reachable (Proton and Drive return no snippet — the server's
+index is what answers; paperless-ngx returns document content, so its
+hits do carry one).
 
 ## Installing the fleet
 

@@ -21,7 +21,7 @@ import (
 // hit carries no snippet beyond its subject; matched_in is TITLE when the
 // subject alone carries every term, otherwise BODY.
 func (p *SourcePlugin) Search(_ context.Context, req *toposv1.SearchRequest) (*toposv1.SearchResponse, error) {
-	if err := searchkit.RequireMembership(req); err != nil {
+	if err := searchkit.RequireMembership(req, "folders"); err != nil {
 		return nil, err
 	}
 	terms := searchkit.Terms(req.GetQuery())
