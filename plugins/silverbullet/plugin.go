@@ -84,6 +84,7 @@ func (p *SourcePlugin) Describe(_ context.Context, _ *toposv1.DescribeRequest) (
 		MatchVocabulary: matchVocabulary,
 		Icon:            iconSVG,
 		IconMime:        iconMIME,
+		SearchesContent: true, // the optional Search RPC (M2-R2), search.go
 	}, nil
 }
 

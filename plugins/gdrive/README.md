@@ -77,3 +77,13 @@ this plugin was built against:
 2. **`CONTRACT-GAPS.md`** — the gap log, delivered in whatever state it is
    in. It is append-only and is handed back as-is, including every entry
    that makes the published contract look incomplete — especially those.
+
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+the member files (the `folders` membership over the synced tree, exactly
+as `Match` applies it) are intersected with Drive's own full-text index
+(`fullText contains` for every query and required term, trashed files
+excluded). Drive returns no snippet, so a hit reports whether the name
+carried the terms or the content did. An empty membership is refused
+rather than searched globally.

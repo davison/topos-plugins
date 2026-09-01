@@ -30,6 +30,15 @@ the system trust store. `base_url` and `token` use the environment-
 expansion form exactly as the reference block below does — never a literal
 host or token. The fully-commented reference block is reproduced below, under "Configuration reference".
 
+## Content search
+
+The plugin implements the kernel's content search (`Search`, M2-R2):
+membership (`tags` / `pages`) is applied first, exactly as `Match` applies
+it, then every query and required term must occur in a member page's
+title, tags, or body (the same frontmatter-stripped body `Match` reads). A
+hit carries a short snippet around the first matching term. An empty
+membership is refused rather than searched globally.
+
 ## Gotchas
 
 - A self-signed instance fails to connect until `ca_cert` points at the
