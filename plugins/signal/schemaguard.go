@@ -64,6 +64,13 @@ import (
 // app version number, since app version and schema version do not move
 // in lockstep. The trigger for re-verification is guardSchemaVersion
 // firing, not a Signal Desktop upgrade notification.
+//
+// `make signal-schema-accept` (scripts/signal-schema-accept.sh) is that
+// act as one command on the operator's machine: it runs the live test,
+// accepts nothing unless the read set is proven intact at the new
+// version, names Signal Desktop's intervening migrations, and writes the
+// constant and the provenance entry above in this format. It never
+// commits — the diff goes through a task like any change.
 const highestSupportedSchemaVersion = 1780
 
 // guardSchemaVersion reads PRAGMA user_version on db and fails loudly,
