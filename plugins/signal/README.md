@@ -130,6 +130,29 @@ section once named, `signal-readonly-smoke.sh`, retired with the plugin
 split — the end-to-end story is the kernel's own dev loop and the
 operator's live instance now.)
 
+## When Signal Desktop's schema moves past the ceiling
+
+The plugin refuses, by name, a database whose `PRAGMA user_version` is
+above the highest schema its read set has been verified against
+(`schemaguard.go`, `highestSupportedSchemaVersion`) — the log line reads
+`unrecognised database schema version N (this plugin was built against
+up to M) — refusing to import, not silently skipping`. That is the
+trigger for re-verification, and it is one command:
+
+```bash
+make signal-schema-accept            # or ./scripts/signal-schema-accept.sh [--dry-run]
+```
+
+It runs the opt-in live read-set test against your real database
+(read-only, as everything here is), accepts nothing unless the read set
+is proven intact at the new version, names Signal Desktop's migrations
+between the old ceiling and the new version (from upstream; offline,
+`SIGNAL_SCHEMA_ACCEPT_OFFLINE=1` writes an explicit placeholder), and
+rewrites `schemaguard.go` — the constant and a provenance bullet in the
+file's own format. It prints the diff and never commits: review it, run
+`make test-signal`, and land it through a task like any other change.
+Below the ceiling there is nothing to accept and it says so.
+
 ## Gotchas
 
 - A distro `sqlcipher` package older than the 3.51.3 SQLite floor fails

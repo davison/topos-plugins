@@ -52,6 +52,7 @@ test-signal:
 # same loop ci.yml runs; signal is proven locally with
 # `cd plugins/signal && CGO_ENABLED=1 go test -tags libsqlcipher ./...`.
 test:
+	./scripts/signal-schema-accept-smoke.sh
 	set -e; for mod in $$(go list -m -f '{{.Dir}}'); do \
 		case "$$mod" in */plugins/signal) echo "=== plugins/signal: skipped (cgo/SQLCipher — local-only)"; continue;; esac; \
 		rel="$${mod#$(CURDIR)/}"; [ "$$rel" != "$(CURDIR)" ] || rel=.; echo "=== $$rel"; \
@@ -112,6 +113,15 @@ install-signal: build-signal
 # Signal binary lives OUTSIDE the prefix, in a directory `uninstall` is
 # forbidden to touch (its removal set is closed over what `install`
 # places).
+# signal-schema-accept moves the Signal plugin's schema ceiling by
+# verify-and-accept (scripts/signal-schema-accept.sh, topos-plugins#23):
+# the live read-set test against the operator's real database, then a
+# rewrite of schemaguard.go — constant and provenance — that the operator
+# reviews and commits through a task. Never commits; nothing to accept
+# is exit 0. Needs cgo, the system sqlcipher and gh (online).
+signal-schema-accept:
+	./scripts/signal-schema-accept.sh
+
 uninstall-signal:
 	./scripts/install-signal.sh --uninstall
 

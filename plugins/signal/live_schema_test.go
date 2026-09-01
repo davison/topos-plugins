@@ -177,6 +177,19 @@ func TestLiveSchemaReadSet(t *testing.T) {
 		"readMessages: %d probed conversation(s), %d message record(s), %d with attachment(s), %d with reaction(s)",
 		len(probeIDs), len(msgs), withAttachments, withReactions,
 	)
+
+	// One machine-readable line for scripts/signal-schema-accept.sh (the
+	// verify-and-accept flow, topos-plugins#23): the schema version this
+	// evidence was gathered at and the same aggregate counts — nothing
+	// else (L-2).
+	var version int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		t.Fatalf("read schema version: %v", err)
+	}
+	t.Logf(
+		"LIVE_SCHEMA_SUMMARY version=%d conversations=%d probed=%d messages=%d attachments=%d reactions=%d",
+		version, len(convs), len(probeIDs), len(msgs), withAttachments, withReactions,
+	)
 }
 
 // tableColumns returns the column names PRAGMA table_info(table) reports,
