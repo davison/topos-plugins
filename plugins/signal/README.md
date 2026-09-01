@@ -35,6 +35,16 @@ make install-signal      # build + place into the external plugin directory
 make uninstall-signal    # remove exactly that one file
 ```
 
+
+**No `sudo` for this step.** The kernel's and the fleet's `make install`
+need it for a `/usr/local` PREFIX; `make install-signal` and
+`make uninstall-signal` must run as the user the kernel runs as — the
+external plugin directory is that user's own data directory
+(`$XDG_DATA_HOME/topos/plugins-external`), and under `sudo` the binary
+would land in root's, where no kernel looks. The script refuses to run
+as root unless `TOPOS_EXTERNAL_PLUGINS_DIR` names the directory
+explicitly (topos-plugins#20).
+
 `make install-signal` builds through `build-signal` and places the
 binary atomically into the installed instance's **external** plugin
 directory — the kernel's default (`$XDG_DATA_HOME/topos/plugins-external`,

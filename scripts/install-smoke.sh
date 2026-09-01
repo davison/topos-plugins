@@ -631,6 +631,26 @@ refuse_trusted_destination "/home/op/.local/share/topos/plugins-external" || fai
 echo "==> Case PASS: install-signal destination resolution"
 
 # ---------------------------------------------------------------------
+# Case: install-signal refuses to run as root (topos-plugins#20). Root
+# is simulated through INSTALL_SIGNAL_EUID, the script's own hook —
+# never a real privilege change. Without the override the refusal
+# names the cause and the fix; with TOPOS_EXTERNAL_PLUGINS_DIR set,
+# root proceeds to the named directory (a deliberately root-run
+# instance is possible, and then the operator names the dir).
+# ---------------------------------------------------------------------
+echo "==> Case: install-signal refuses root"
+SIG_RC=0
+SIG_OUT="$(INSTALL_SIGNAL_EUID=0 TOPOS_EXTERNAL_PLUGINS_DIR="" refuse_root 2>&1)" || SIG_RC=$?
+[ "$SIG_RC" -ne 0 ] || fail "install-signal: a root run without the override was not refused"
+printf '%s' "$SIG_OUT" | grep -q "WITHOUT sudo" || fail "install-signal: the root refusal did not name the fix
+$SIG_OUT"
+printf '%s' "$SIG_OUT" | grep -q "TOPOS_EXTERNAL_PLUGINS_DIR" || fail "install-signal: the root refusal did not name the override
+$SIG_OUT"
+INSTALL_SIGNAL_EUID=0 TOPOS_EXTERNAL_PLUGINS_DIR="/custom/ext" refuse_root || fail "install-signal: root with an explicit directory was refused"
+INSTALL_SIGNAL_EUID=1000 TOPOS_EXTERNAL_PLUGINS_DIR="" refuse_root || fail "install-signal: an unprivileged run was refused"
+echo "==> Case PASS: install-signal refuses root"
+
+# ---------------------------------------------------------------------
 # Case: install-signal place-then-uninstall cycle — runs only when a
 # locally built bin/topos-plugin-signal exists (the cgo build needs the
 # system sqlcipher package; CI skips this LOUDLY and the operator's

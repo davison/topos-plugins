@@ -190,6 +190,16 @@ make uninstall-signal    # remove exactly that one file
 make test-signal         # the cgo suite (skipped by make test)
 ```
 
+
+**No `sudo` for this step.** The kernel's and the fleet's `make install`
+need it for a `/usr/local` PREFIX; `make install-signal` and
+`make uninstall-signal` must run as the user the kernel runs as — the
+external plugin directory is that user's own data directory
+(`$XDG_DATA_HOME/topos/plugins-external`), and under `sudo` the binary
+would land in root's, where no kernel looks. The script refuses to run
+as root unless `TOPOS_EXTERNAL_PLUGINS_DIR` names the directory
+explicitly (topos-plugins#20).
+
 A locally built binary carries no signed provenance, so it does not go
 into `$PREFIX/lib/topos/plugins` (the kernel would refuse it there at
 launch). Place it in the installed instance's **external** plugin
