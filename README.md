@@ -280,6 +280,26 @@ see that repository's D-03).
 
 ## What the release workflow guarantees
 
+### Choosing the version
+
+The next tag's number is not chosen by feel — it is derived from THIS
+repository's own conventional-commit log since its last tag, by the
+rule defined in the kernel repository
+([davison/topos `docs/releasing.md`, "Versioning"](https://github.com/davison/topos/blob/main/docs/releasing.md);
+decided at [davison/topos#64](https://github.com/davison/topos/issues/64)):
+any breaking-marked commit (`<type>!:` or `<type>(scope)!:`) forces a
+**minor** bump; otherwise any additive `feat:` or any `fix:` yields a
+**patch** bump; a log of only `docs:`/`chore:`/`test:`/`ci:`/`build:`/
+`refactor:` commits cuts no new tag; a **major** is always a human
+decision. Commit types must truthfully classify each change and the
+reviewer verifies them — the same obligations the kernel's role
+overlays carry. To derive, from a full clone:
+
+```bash
+git fetch --tags origin "+refs/heads/main:refs/remotes/origin/main"
+git log "$(git describe --tags --abbrev=0 origin/main)"..origin/main --pretty=%s
+```
+
 Pushing a tag matching `v*.*.*` builds the static fleet (`make build`)
 and the provenance verifier at the pinned kernel revision
 (`make verifier`, pinned by `TOPOS_PROVENANCE_REF` — one file, one
