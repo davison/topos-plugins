@@ -160,7 +160,10 @@ func TestServeMode_HostClientDispensesAndDescribes(t *testing.T) {
 func childEnv(extra ...string) []string {
 	env := make([]string, 0, len(os.Environ())+1+len(extra))
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "GDRIVE_") {
+		// Case-insensitive: Windows environment lookup ignores case, so a
+		// parent's gdrive_client_id would still satisfy the child's
+		// os.Getenv("GDRIVE_CLIENT_ID") there (PR #31 review round 1).
+		if strings.HasPrefix(strings.ToUpper(kv), "GDRIVE_") {
 			continue
 		}
 		env = append(env, kv)
@@ -471,9 +474,10 @@ func TestServeMode_MintsAnAccessTokenFromThePersistedTokenWithNoBrowser(t *testi
 func TestDispatch_AuthExitsEvenWithOperatorCredentialsExported(t *testing.T) {
 	t.Setenv("GDRIVE_CLIENT_ID", "fake-operator-client-id")
 	t.Setenv("GDRIVE_CLIENT_SECRET", "fake-operator-secret")
+	t.Setenv("gdrive_client_id", "fake-lowercase-alias")
 
 	for _, kv := range childEnv() {
-		if strings.HasPrefix(kv, "GDRIVE_") {
+		if strings.HasPrefix(strings.ToUpper(kv), "GDRIVE_") {
 			t.Fatalf("childEnv leaked %q into the child environment", kv)
 		}
 	}
