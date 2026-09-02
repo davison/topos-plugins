@@ -5,8 +5,10 @@
 # never a floating ref, so the release pipeline can never silently pick
 # up a changed manifest format or signing scheme. At a kernel release
 # tag since v1.3.0 shipped cmd/topos-provenance (davison/topos#6; the
-# tag is commit 7c07400, so the key-set requirement below is checkable
-# against it).
+# tag is commit 7c07400; v1.3.1, commit 2a85ef2, is the kernel this
+# fleet actually pairs with since M2 — the parity bump the M2 record
+# names (davison/topos#72 M3-R5). The key-set requirement below is
+# unchanged: v1.3.1 descends from the embed).
 #
 # The revision must be one whose embedded accepted-key set includes this
 # repository's signing key (topos-plugins-2026a, embedded by davison/
@@ -22,4 +24,4 @@
 # kernel/pluginhost, which IS pinned; the sdk only supplies plugin types.
 #
 # Comment lines and blank lines are ignored.
-v1.3.0
+v1.3.1
