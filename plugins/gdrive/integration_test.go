@@ -150,6 +150,25 @@ func TestServeMode_HostClientDispensesAndDescribes(t *testing.T) {
 // was launched directly rather than by a plugin host) and a serve-mode
 // fallthrough would never reach the point of emitting a handshake line —
 // exactly the false negative these dispatch tests must avoid.
+// childEnv is the environment every spawned-binary test uses in place of
+// a wholesale os.Environ() inherit (tp#5 / davison/topos#72 M3-R4): the
+// parent's environment minus every GDRIVE_* entry, plus the handshake
+// cookie. On the operator's machine GDRIVE_CLIENT_ID/SECRET are exported
+// for real use; inheriting them turned the fail-loud credential check
+// into a live OAuth flow and hung the suite. Tests that need credentials
+// set their own fakes explicitly on top of this scrubbed base.
+func childEnv(extra ...string) []string {
+	env := make([]string, 0, len(os.Environ())+1+len(extra))
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "GDRIVE_") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	env = append(env, cookieEnvVar())
+	return append(env, extra...)
+}
+
 func cookieEnvVar() string {
 	return sdk.Handshake.MagicCookieKey + "=" + sdk.Handshake.MagicCookieValue
 }
@@ -198,7 +217,7 @@ func TestDispatch_AuthArgumentExitsWithoutServing(t *testing.T) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, binPath, "auth")
-	cmd.Env = append(os.Environ(), cookieEnvVar())
+	cmd.Env = childEnv()
 	out, err := cmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -250,7 +269,7 @@ func TestDispatch_OnlyExactLowercaseAuthAtPositionOneIsHonored(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.serveMode {
 				cmd := exec.Command(binPath, tt.args...)
-				cmd.Env = append(os.Environ(), cookieEnvVar())
+				cmd.Env = childEnv()
 
 				line, timedOut := firstStdoutLineOrTimeout(t, cmd, 5*time.Second)
 				defer func() {
@@ -270,7 +289,7 @@ func TestDispatch_OnlyExactLowercaseAuthAtPositionOneIsHonored(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, binPath, tt.args...)
-			cmd.Env = append(os.Environ(), cookieEnvVar())
+			cmd.Env = childEnv()
 			out, err := cmd.CombinedOutput()
 
 			if ctx.Err() == context.DeadlineExceeded {
@@ -441,5 +460,34 @@ func TestServeMode_MintsAnAccessTokenFromThePersistedTokenWithNoBrowser(t *testi
 	}
 	if strings.Contains(stderrOutput, "xdg-open") {
 		t.Errorf("subprocess stderr contains \"xdg-open\" — a browser-launch attempt should never occur during a token-file-driven restart:\n%s", stderrOutput)
+	}
+}
+
+// TestDispatch_AuthExitsEvenWithOperatorCredentialsExported is the
+// regression pin for the scrub itself (tp#5): with GDRIVE_* exported in
+// the PARENT environment — exactly the operator's machine — the child
+// must still see none of it, so the auth path fails loud and exits
+// instead of entering a live OAuth flow and hanging the suite.
+func TestDispatch_AuthExitsEvenWithOperatorCredentialsExported(t *testing.T) {
+	t.Setenv("GDRIVE_CLIENT_ID", "fake-operator-client-id")
+	t.Setenv("GDRIVE_CLIENT_SECRET", "fake-operator-secret")
+
+	for _, kv := range childEnv() {
+		if strings.HasPrefix(kv, "GDRIVE_") {
+			t.Fatalf("childEnv leaked %q into the child environment", kv)
+		}
+	}
+
+	binPath := buildPlugin(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath, "auth")
+	cmd.Env = childEnv()
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("auth with exported parent credentials did not exit within 10s — the scrub failed:\n%s", out)
+	}
+	if err == nil {
+		t.Fatalf("auth exited 0 without credentials in the child env — want the fail-loud non-zero exit; output:\n%s", out)
 	}
 }
